@@ -56,18 +56,6 @@
 */
 
 static char USAGE[] =
-#ifdef IS_MSDOS
-
-"Usage: \
-%s [-m|x%s|c|o|a|z] [-h] [-d|p] [-g|t] [-v|n] [from to]\n\
-\n\
-Use #N in the ``to'' pattern to get the string matched\n\
-by the N'th ``from'' pattern wildcard.\n\
-Use -- as the end of options.\n";
-
-#define OTHEROPT (_osmajor < 3 ? "" : "|r")
-
-#else
 
 "Usage: \
 %s [-m|x|r|c|o|a|l%s] [-h] [-d|p] [-g|t] [-v|n] [from to]\n\
@@ -80,48 +68,13 @@ on the command line. Also you may need to quote ``to'' pattern.\n\
 \n\
 Use -- as the end of options.\n";
 
-#ifdef IS_SYSV
 #define OTHEROPT ""
-#else
-#define OTHEROPT "|s"
-#endif
 
-#endif
 
 #include <unistd.h>
 #include <stdio.h>
 #include <ctype.h>
 
-#ifdef IS_MSDOS
-/* for MS-DOS (under Turbo C 1.5)*/
-
-#include <string.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <dos.h>
-#include <dir.h>
-#include <io.h>
-#include <fcntl.h>
-
-#define ESC '\''
-#ifdef SLASH
-#define SLASH '\\'
-#define OTHERSLASH '/'
-#else
-#define SLASH '/'
-#define OTHERSLASH '\\'
-#endif
-
-typedef int DIRID;
-typedef int DEVID;
-
-static char TTY[] = "/dev/con";
-extern unsigned _stklen = 10000;
-
-#undef HAS_RENAME
-#define HAS_RENAME 1
-
-#else
 /* for various flavors of UN*X */
 
 #include <libgen.h>
@@ -130,36 +83,12 @@ extern unsigned _stklen = 10000;
 #include <sys/stat.h>
 #include <sys/file.h>
 
-#ifdef HAS_DIRENT
 #include <dirent.h>
 typedef struct dirent DIRENTRY;
-#else
-#ifdef IS_SYSV
-#include <sys/dir.h>
-/* might need to be changed to <dir.h> */
-#else
-#include <sys/dir.h>
-#endif
-typedef struct direct DIRENTRY;
-#endif
 
-#ifndef __STDC__
-#ifndef __GNUC__
-#ifndef IS_SYSV
-#ifndef IS_BSD
-#define void char	/* might want to remove this line */
-#endif
-#endif
-#endif
-#endif
 
 #ifndef O_BINARY
 #define O_BINARY 0
-#endif
-#ifndef R_OK
-#define R_OK 4
-#define W_OK 2
-#define X_OK 1
 #endif
 
 #define ESC '\\'
@@ -172,25 +101,11 @@ typedef dev_t DEVID;
 
 static char TTY[] = "/dev/tty";
 
-#ifdef IS_V7
-/* for Version 7 */
-#include <errno.h>
-extern int errno;
-#define strchr index
-extern char *strcpy(), *strchr();
-#include <signal.h>
-#define O_RDONLY 0
-#define O_WRONLY 1
-#define O_RDWR   2
-
-#else
 /* for System V and BSD */
 #include <string.h>
 #include <signal.h>
 #include <fcntl.h>
-#endif
 
-#ifdef IS_SYSV
 
 /* for System V and Version 7*/
 struct utimbuf {
@@ -199,25 +114,8 @@ struct utimbuf {
 };
 #define utimes(f, t) utime((f), &(t))
 
-#ifndef HAS_RENAME
-#ifndef MV_DIR
-# define MV_DIR "/usr/lib/mv_dir"
-#endif
-#endif
 
-#ifdef MV_DIR
-# define HAS_RENAME
-#endif
 
-#else
-
-/* for BSD */
-#undef HAS_RENAME
-#define HAS_RENAME 1
-#include <sys/time.h>
-
-#endif
-#endif
 
 #define mylower(c) (isupper(c) ? (c)-'A'+'a' : (c))
 #define myupper(c) (islower(c) ? (c)-'a'+'A' : (c))
@@ -276,12 +174,8 @@ static char LINKNAME[] = "mln";
 typedef struct {
 	char *fi_name;
 	struct rep *fi_rep;
-#ifdef IS_MSDOS
-	char fi_attrib;
-#else
 	short fi_mode;
 	char fi_stflags;
-#endif
 } FILEINFO;
 
 #define DI_KNOWWRITE 0x01
@@ -404,24 +298,9 @@ static void *challoc(/* int k, int which */);
 static void chgive(/* void *p, unsigned k */);
 static int mygetc(/* */);
 static char *mygets(/* char *s, int l */);
-#ifdef IS_MSDOS
-static int leave(/*  */);
-static void cleanup(/*  */);
-#else
 static int getstat(/* char *full, FILEINFO *f */);
 static int dwritable(/* HANDLE *h */);
 static int fwritable(/* char *hname, FILEINFO *f */);
-#ifndef __STDC__
-#ifndef IS_MSDOS
-#ifndef IS_SYSV
-static void memmove(/* void *to, void *from, int k */);
-#endif
-#endif
-#endif
-#endif
-#ifndef HAS_RENAME
-static int rename(/* char *from, char *to */);
-#endif
 
 static int op, badstyle, delstyle, verbose, noex, matchall;
 static int patflags;
@@ -440,9 +319,6 @@ static SLICER slicer[2] = {{NULL, NULL, 0}, {NULL, NULL, 0}};
 static int badreps = 0, paterr = 0, direrr, failed = 0, gotsig = 0, repbad;
 static FILE *outfile;
 
-#ifdef IS_MSDOS
-static char IDF[] = "$$mmvdid.";
-#endif
 static char TEMP[] = "$$mmvtmp.";
 static char TOOLONG[] = "(too long)";
 static char EMPTY[] = "(empty)";
@@ -463,26 +339,6 @@ static int len[MAXWILD];
 static REP mistake;
 #define MISTAKE (&mistake)
 
-#ifdef IS_MSDOS
-
-static char hasdot[MAXWILD];
-static int olddevflag, curdisk, maxdisk;
-static struct {
-	char ph_banner[30];
-	char ph_name[9];
-	int ph_dfltop;
-	int ph_safeid;
-	int ph_clustoff;
-	int ph_driveoff;
-	int ph_drivea;
-} patch = {"mmv 1.0 patchable flags", "mmv", XMOVE, 1, 0};
-
-#define DFLTOP (patch.ph_dfltop)
-#define CLUSTNO(pff) (*(int *)(((char *)(pff)) + patch.ph_clustoff))
-#define DRIVENO(pff) (*(((char *)(pff)) + patch.ph_driveoff) - patch.ph_drivea)
-
-
-#else
 
 #define DFLTOP XMOVE
 
@@ -492,7 +348,6 @@ static int uid, euid, oldumask;
 static DIRID cwdd = -1;
 static DEVID cwdv = -1;
 
-#endif
 
 
 int main(argc, argv)
@@ -522,23 +377,6 @@ int main(argc, argv)
 
 static void init()
 {
-#ifdef IS_MSDOS
-	curdisk = getdisk();
-	maxdisk = setdisk(curdisk);
-/*
-	Read device availability : undocumented internal MS-DOS function.
-	If (_DX == 0) then \dev\ must precede device names.
-*/
-	bdos(0x37, 0, 2);
-	olddevflag = _DX;
-/*
-	Write device availability: undocumented internal MS-DOS function.
-	Specify \dev\ must precede device names.
-*/
-	bdos(0x37, 0, 3);
-	atexit((atexit_t)cleanup);
-	ctrlbrk((int (*)())breakout);
-#else
 	struct stat dstat;
 
 	if ((home = getenv("HOME")) == NULL || strcmp(home, SLASHSTR) == 0)
@@ -551,7 +389,6 @@ static void init()
 	euid = geteuid();
 	uid = getuid();
 	signal(SIGINT, breakout);
-#endif
 
 	dirroom = handleroom = INITROOM;
 	dirs = (DIRINFO **)myalloc(dirroom * sizeof(DIRINFO *));
@@ -568,11 +405,7 @@ static void procargs(argc, argv, pfrompat, ptopat)
 	char *p, c;
 	char *cmdname = basename(argv[0]);
 
-#ifdef IS_MSDOS
-#define CMDNAME (patch.ph_name)
-#else
 #define CMDNAME cmdname
-#endif
 
 	op = DFLT;
 	verbose = noex = matchall = 0;
@@ -612,17 +445,10 @@ static void procargs(argc, argv, pfrompat, ptopat)
 				op = OVERWRITE;
 			else if (c == 'a' && op == DFLT)
 				op = NORMAPPEND;
-#ifdef IS_MSDOS
-			else if (c == 'z' && op == DFLT)
-				op = ZAPPEND;
-#else
 			else if (c == 'l' && op == DFLT)
 				op = HARDLINK;
-#ifdef S_IFLNK
 			else if (c == 's' && op == DFLT)
 				op = SYMLINK;
-#endif
-#endif
 			else {
 				fprintf(stderr, USAGE, CMDNAME, OTHEROPT);
 				exit(1);
@@ -645,27 +471,17 @@ endargs:
 	
 	if (
 		op & DIRMOVE &&
-#ifdef IS_MSDOS
-		_osmajor < 3
-#else
-#ifndef HAS_RENAME
-		euid != 0
-#else
 		0
-#endif
-#endif
 	) {
 		fprintf(stderr,
 			"Unable to do directory renames. Option -r refused.\n");
 		quit();
 	}
 
-#ifndef IS_MSDOS
 	if (euid != uid && !(op & DIRMOVE)) {
 		setuid(uid);
 		setgid(getgid());
 	}
-#endif
 
 	if (badstyle != ASKBAD && delstyle == ASKDEL)
 		delstyle = NODEL;
@@ -793,11 +609,6 @@ static int parsepat()
 	static char TRAILESC[] = "%s -> %s : trailing %c is superfluous.\n";
 
 	lastname = from;
-#ifdef IS_MSDOS
-	havedot = 0;
-	if (from[0] != '\0' && from[1] == ':')
-		lastname += 2;
-#else
 	if (from[0] == '~' && from[1] == SLASH) {
 		if ((homelen = strlen(home)) + fromlen > MAXPATLEN) {
 			printf(PATLONG, from);
@@ -807,30 +618,10 @@ static int parsepat()
 		memmove(from, home, homelen);
 		lastname += homelen + 1;
 	}
-#endif
 	totwilds = nstages = instage = 0;
 	for (p = lastname; (c = *p) != '\0'; p++)
 		switch (c) {
-#ifdef IS_MSDOS
-		case '.':
-			havedot = 1;
-			break;
-		case OTHERSLASH:
-			*p = SLASH;
-#endif
  		case SLASH:
-#ifdef IS_MSDOS
-			if (!havedot && lastname != p) {
-				if (fromlen++ == MAXPATLEN) {
-					printf(PATLONG, from);
-					return(-1);
-				}
-				memmove(p + 1, p, strlen(p) + 1);
-				*(p++) = '.';
-			}
-			else
-				havedot = 0;
-#endif
 			lastname = p + 1;
 			if (instage) {
 				if (firstwild[nstages] == NULL)
@@ -848,10 +639,6 @@ static int parsepat()
 		case '*':
 		case '?':
 		case '[':
-#ifdef IS_MSDOS
-			if ((hasdot[totwilds] = (c == '!')) != 0)
-				havedot = 1;
-#endif
 			if (totwilds++ == MAXWILD) {
 				printf("%s -> %s : too many wildcards.\n", from, to);
 				return(-1);
@@ -874,11 +661,6 @@ static int parsepat()
 				case '\0':
 					printf("%s -> %s : missing ].\n", from, to);
 					return(-1);
-#ifdef IS_MSDOS
-				case '.':
-				case ':':
-				case OTHERSLASH:
-#endif
 				case SLASH:
 					printf("%s -> %s : '%c' can not be part of [].\n",
 						from, to, c);
@@ -888,11 +670,6 @@ static int parsepat()
 						printf(TRAILESC, from, to, ESC);
 						return(-1);
 					}
-#ifdef IS_MSDOS
-				default:
-					if (isupper(c))
-						*p = c + ('a' - 'A');
-#endif
 				}
 			}
 			break;
@@ -901,22 +678,8 @@ static int parsepat()
 				printf(TRAILESC, from, to, ESC);
 				return(-1);
 			}
-#ifdef IS_MSDOS
-		default:
-			if (isupper(c))
-				*p = c + ('a' - 'A');
-#endif
 		}
 
-#ifdef IS_MSDOS
-	if (!havedot && lastname != p) {
-		if (fromlen++ == MAXPATLEN) {
-			printf(PATLONG, from);
-			return(-1);
-		}
-		strcpy(p++, ".");
-	}
-#endif
 
 	if (instage) {
 		if (firstwild[nstages] == NULL)
@@ -931,11 +694,6 @@ static int parsepat()
 	}
 
 	lastname = to;
-#ifdef IS_MSDOS
-	havedot = 0;
-	if (to[0] != '\0' && to[1] == ':')
-		lastname += 2;
-#else
 	if (to[0] == '~' && to[1] == SLASH) {
 		if ((homelen = strlen(home)) + tolen > MAXPATLEN) {
 			printf(PATLONG, to);
@@ -945,46 +703,21 @@ static int parsepat()
 		memmove(to, home, homelen);
 		lastname += homelen + 1;
 	}
-#endif
 
 	for (p = lastname; (c = *p) != '\0'; p++)
 		switch (c) {
-#ifdef IS_MSDOS
-		case '.':
-			havedot = 1;
-			break;
-		case OTHERSLASH:
-			*p = SLASH;
-#endif
 		case SLASH:
 			if (op & DIRMOVE) {
 				printf("%s -> %s : no path allowed in target under -r.\n",
 					from, to);
 				return(-1);
 			}
-#ifdef IS_MSDOS
-			if (!havedot && lastname != p) {
-				if (tolen++ == MAXPATLEN) {
-					printf(PATLONG, to);
-					return(-1);
-				}
-				memmove(p + 1, p, strlen(p) + 1);
-				*(p++) = '.';
-			}
-			else
-				havedot = 0;
-#endif
 			lastname = p + 1;
 			break;
 		case '#':
 			c = *(++p);
 			if (c == 'l' || c == 'u') {
-#ifdef IS_MSDOS
-				strcpy(p, p + 1);
-				c = *p;
-#else
 				c = *(++p);
-#endif
 			}
 			if (!isdigit(c)) {
 				printf("%s -> %s : expected digit (not '%c') after #.\n",
@@ -1003,40 +736,14 @@ static int parsepat()
 					from, to, x);
 				return(-1);
 			}
-#ifdef IS_MSDOS
-			if (hasdot[x - 1])
-				havedot = 1;
-#endif
 			break;
 		case ESC:
 			if ((c = *(++p)) == '\0') {
 				printf(TRAILESC, from, to, ESC);
 				return(-1);
 			}
-#ifdef IS_MSDOS
-		default:
-			if (
-				c <= ' ' || c >= 127 ||
-				strchr(":/\\*?[]=+;,\"|<>", c) != NULL
-			) {
-				printf("%s -> %s : illegal character '%c' (0x%02X).\n",
-					from, to, c, c);
-				return(-1);
-			}
-			if (isupper(c))
-				*p = c + ('a' - 'A');
-#endif
 		}
 
-#ifdef IS_MSDOS
-	if (!havedot && lastname != p) {
-		if (tolen++ == MAXPATLEN) {
-			printf(PATLONG, to);
-			return(-1);
-		}
-		strcpy(p++, ".");
-	}
-#endif
 
 	return(0);
 }
@@ -1095,14 +802,12 @@ static int dostage(lastend, pathend, start1, len1, stage, anylev)
 
 	nfils = di->di_nfils;
 
-#ifndef IS_MSDOS
 	if ((op & MOVE) && !dwritable(h)) {
 		printf("%s -> %s : directory %s does not allow writes.\n",
 			from, to, pathbuf);
 		paterr = 1;
 		goto skiplev;
 	}
-#endif
 
 	firstesc = strchr(lastend, ESC);
 	if (firstesc == NULL || firstesc > firstwild[stage])
@@ -1154,9 +859,6 @@ skiplev:
 		for (pf = di->di_fils, i = 0; i < nfils; i++, pf++)
 			if (
 				*((*pf)->fi_name) != '.' &&
-#ifdef IS_MSDOS
-				((*pf)->fi_attrib & FA_DIREC) &&
-#endif
 				keepmatch(*pf, pathend, &k, 1, 1, 0)
 			) {
 				*len1 = pathend - *start1 + k;
@@ -1178,17 +880,12 @@ static int trymatch(ffrom, pat)
 
 	p = ffrom->fi_name;
 
-#ifdef IS_MSDOS
-	if (*p == '.' || (!matchall && ffrom->fi_attrib & (FA_HIDDEN | FA_SYSTEM)))
-		return(strcmp(pat, p) == 0);
-#else
 	if (*p == '.') {
 		if (p[1] == '\0' || (p[1] == '.' && p[2] == '\0'))
 			return(strcmp(pat, p) == 0);
 		else if (!matchall && *pat != '.')
 			return(0);
 	}
-#endif
 	return(-1);
 }
 
@@ -1209,12 +906,8 @@ static int keepmatch(ffrom, pathend, pk, needslash, dirs, fils)
 		return(0);
 	}
 	strcpy(pathend, ffrom->fi_name);
-#ifdef IS_MSDOS
-	if ((ffrom->fi_attrib & FA_DIREC) ? !dirs : !fils)
-#else
 	getstat(pathbuf, ffrom);
 	if ((ffrom->fi_stflags & FI_ISDIR) ? !dirs : !fils)
-#endif
 	{
 		if (verbose)
 			printf("ignoring directory %s\n", ffrom->fi_name);
@@ -1241,29 +934,16 @@ static int badrep(hfrom, ffrom, phto, pnto, pfdel, pflags)
 
 	*pflags = 0;
 	if (
-#ifdef IS_MSDOS
-		(ffrom->fi_attrib & FA_DIREC) &&
-#else
 		(ffrom->fi_stflags & FI_ISDIR) &&
-#endif
 		!(op & (DIRMOVE | SYMLINK))
 	)
 		printf("%s -> %s : source file is a directory.\n", pathbuf, fullrep);
-#ifndef IS_MSDOS
-#ifdef S_IFLNK
 	else if ((ffrom->fi_stflags & FI_LINKERR) && !(op & (MOVE | SYMLINK)))
 		printf("%s -> %s : source file is a badly aimed symbolic link.\n",
 			pathbuf, fullrep);
-#endif
-#ifndef IS_SYSV
-	else if ((ffrom->fi_stflags & FI_NODEL) && (op & MOVE)) 
-		printf("%s -> %s : no delete permission for source file.\n",
-			pathbuf, fullrep);
-#endif
 	else if ((op & (COPY | APPEND)) && access(pathbuf, R_OK))
 		printf("%s -> %s : no read permission for source file.\n",
 			pathbuf, fullrep);
-#endif
 	else if (
 		*f == '.' &&
 		(f[1] == '\0' || strcmp(f, "..") == 0) &&
@@ -1274,23 +954,18 @@ static int badrep(hfrom, ffrom, phto, pnto, pfdel, pflags)
 		printf("%s -> %s : bad new name.\n", pathbuf, fullrep);
 	else if (*phto == NULL)
 		printf("%s -> %s : %s.\n", pathbuf, fullrep,
-#ifndef IS_MSDOS
 			direrr == H_NOREADDIR ?
 			"no read or search permission for target directory" :
-#endif
 			"target directory does not exist");
-#ifndef IS_MSDOS
 	else if (!dwritable(*phto))
 		printf("%s -> %s : no write permission for target directory.\n",
 			pathbuf, fullrep);
-#endif
 	else if (
 		(*phto)->h_di->di_vid != hfrom->h_di->di_vid &&
 		(*pflags = R_ISX, (op & (NORMMOVE | HARDLINK)))
 	)
 		printf("%s -> %s : cross-device move.\n",
 			pathbuf, fullrep);
-#ifndef IS_MSDOS
 	else if (
 		*pflags && (op & MOVE) &&
 		!(ffrom->fi_stflags & FI_ISLNK) &&
@@ -1298,7 +973,6 @@ static int badrep(hfrom, ffrom, phto, pnto, pfdel, pflags)
 	)
 		printf("%s -> %s : no read permission for source file.\n",
 			pathbuf, fullrep);
-#ifdef S_IFLNK
 	else if (
 		(op & SYMLINK) &&
 		!(
@@ -1309,8 +983,6 @@ static int badrep(hfrom, ffrom, phto, pnto, pfdel, pflags)
 	)
 		printf("%s -> %s : symbolic link would be badly aimed.\n",
 			pathbuf, fullrep);
-#endif
-#endif
 	else
 		return(0);
 	badreps++;
@@ -1338,9 +1010,7 @@ static int checkto(hfrom, f, phto, pnto, pfdel)
 		memmove(fullrep, hfrom->h_name, hlen);
 		if ((fdel = *pfdel = fsearch(pathend, hfrom->h_di)) != NULL) {
 			*pnto = fdel->fi_name;
-#ifndef IS_MSDOS
 			getstat(fullrep, fdel);
-#endif
 		}
 		else
 			*pnto = mydup(pathend);
@@ -1353,11 +1023,7 @@ static int checkto(hfrom, f, phto, pnto, pfdel)
 			*phto != NULL &&
 			*pathend != '\0' &&
 			(fdel = *pfdel = fsearch(pathend, (*phto)->h_di)) != NULL &&
-#ifdef IS_MSDOS
-			(fdel->fi_attrib & FA_DIREC)
-#else
 			(getstat(fullrep, fdel), fdel->fi_stflags & FI_ISDIR)
-#endif
 		) {
 			tlen = strlen(pathend);
 			strcpy(pathend + tlen, SLASHSTR);
@@ -1377,10 +1043,8 @@ static int checkto(hfrom, f, phto, pnto, pfdel)
 			strcat(pathend, f);
 			if (*phto != NULL) {
 				fdel = *pfdel = fsearch(f, (*phto)->h_di);
-#ifndef IS_MSDOS
 				if (fdel != NULL)
 					getstat(fullrep, fdel);
-#endif
 			}
 		}
 		else if (fdel != NULL)
@@ -1397,11 +1061,6 @@ static char *getpath(tpath)
 {
 	char *pathstart, *pathend, c;
 
-#ifdef IS_MSDOS
-	if (*fullrep != '\0' && fullrep[1] == ':')
-		pathstart = fullrep + 2;
-	else
-#endif
 		pathstart = fullrep;
 
 	pathend = pathstart + strlen(pathstart) - 1;
@@ -1420,27 +1079,14 @@ static char *getpath(tpath)
 static int badname(s)
 	char *s;
 {
-#ifdef IS_MSDOS
-	char *ext;
-#endif
 
 	return (
-#ifdef IS_MSDOS
-		*s == ' ' ||
-		*s == '.' ||
-		(ext = strchr(s, '.')) - s >= MAXFILE ||
-		(*ext == '.' && strchr(ext + 1, '.') != NULL) ||
-		strlen(ext) >= MAXEXT ||
-		strncmp(s, IDF, STRLEN(IDF)) == 0
-#else
 		(*s == '.' && (s[1] == '\0' || strcmp(s, "..") == 0)) ||
 		strlen(s) > MAXNAMLEN
-#endif
 	);
 }
 
 
-#ifndef IS_MSDOS
 static int getstat(ffull, f)
 	char *ffull;
 	FILEINFO *f;
@@ -1451,12 +1097,6 @@ static int getstat(ffull, f)
 	if ((flags = f->fi_stflags) & FI_STTAKEN)
 		return(flags & FI_LINKERR);
 	flags |= FI_STTAKEN;
-#ifndef S_IFLNK
-	if (stat(ffull, &fstat)) {
-		fprintf(stderr, "Strange, couldn't stat %s.\n", ffull);
-		quit();
-	}
-#else
 	if (lstat(ffull, &fstat)) {
 		fprintf(stderr, "Strange, couldn't lstat %s.\n", ffull);
 		quit();
@@ -1470,7 +1110,6 @@ static int getstat(ffull, f)
 			return(1);
 		}
 	}
-#endif
 	if ((fstat.st_mode & S_IFMT) == S_IFDIR)
 		flags |= FI_ISDIR;
 	f->fi_stflags = flags;
@@ -1525,7 +1164,6 @@ static int fwritable(hname, f)
 	f->fi_stflags |= FI_KNOWWRITE | r;
 	return(r);
 }
-#endif
 
 
 static FILEINFO *fsearch(s, d)
@@ -1576,153 +1214,6 @@ static int ffirst(s, n, d)
 }
 
 
-#ifdef IS_MSDOS
-/* checkdir and takedir for MS-D*S */
-
-static HANDLE *checkdir(p, pathend, which)
-	char *p, *pathend;
-	int which;
-{
-	struct ffblk de;
-	DIRID d;
-	DEVID v;
-	HANDLE *h;
-	char *dirstart = p;
-	int fd;
-	int firstfound;
-	DIRINFO *di;
-
-	if (hsearch(p, which, &h))
-		if (h->h_di == NULL) {
-			direrr = h->h_err;
-			return(NULL);
-		}
-		else
-			return(h);
-
-	if (*p == '\0' || p[1] != ':')
-		v = curdisk;
-	else {
-		dirstart += 2;
-		v = mylower(p[0]) - 'a';
-		if (v < 0 || v >= maxdisk)
-			return(NULL);
-	}
-
-	if (patch.ph_safeid) {
-		strcpy(pathend, IDF);
-		strcpy(pathend + STRLEN(IDF), "*");
-		if (findfirst(p, &de, 0)) {
-			if ((d = ndirs) == 1000) {
-				fprintf(stderr, "Too many different directories.\n");
-				quit();
-			}
-			sprintf(pathend + STRLEN(IDF), "%03d", d);
-			if ((fd = _creat(p, 0)) < 0) {
-				direrr = h->h_err = H_NODIR;
-				return(NULL);
-			}
-			_close(fd);
-			strcpy(pathend, "*.*");
-			if (findfirst(p, &de, FA_DIREC | FA_SYSTEM | FA_HIDDEN))
-				h->h_di = dadd(v, d);
-			else
-				takedir(&de, h->h_di = dadd(v, d));
-		}
-		else if ((d = atoi(de.ff_name + STRLEN(IDF))) < ndirs)
-			h->h_di = dirs[d];
-		else {
-			strcpy(pathend, de.ff_name);
-			fprintf(stderr, "Strange dir-id file encountered: %s.\n", p);
-			quit();
-		}
-		*pathend = '\0';
-	}
-	else {
-		strcpy(pathend, "*.*");
-		firstfound = !findfirst(p, &de, FA_DIREC | FA_SYSTEM | FA_HIDDEN);
-		*pathend = '\0';
-		if (firstfound) {
-			v = DRIVENO(&de);
-			d = CLUSTNO(&de);
-		}
-		else {
-			strcpy(pathend, "T.D");
-			if (mkdir(p)) {
-				*pathend = '\0';
-				direrr = h->h_err = H_NODIR;
-				return(NULL);
-			}
-			strcpy(pathend, "*.*");
-			firstfound = !findfirst(p, &de, FA_DIREC | FA_SYSTEM | FA_HIDDEN);
-			*pathend = '\0';
-			v = DRIVENO(&de);
-			d = CLUSTNO(&de);
-			rmdir(p);
-			if (!firstfound || d != 0) {
-				fprintf(stderr,
-					"Strange, %s does not seem to be a root dir.\n",
-					p);
-				quit();
-			}
-		}
-
-		if ((di = dsearch(v, d)) == NULL)
-			if (firstfound)
-				takedir(&de, h->h_di = dadd(v, d));
-			else
-				h->h_di = dadd(v, d);
-		else
-			h->h_di = di;
-	}
-
-	return(h);
-}
-
-
-static void takedir(pff, di)
-	struct ffblk *pff;
-	DIRINFO *di;
-{
-	int cnt, room, namlen, needdot;
-	FILEINFO **fils, *f;
-	char c, *p, *p1;
-
-	room = INITROOM;
-	di->di_fils = fils = (FILEINFO **)myalloc(room * sizeof(FILEINFO *));
-	cnt = 0;
-	do {
-		if (strnicmp(pff->ff_name, IDF, STRLEN(IDF)) == 0)
-			continue;
-		if (cnt == room) {
-			room *= 2;
-			fils = (FILEINFO **)myalloc(room * sizeof(FILEINFO *));
-			memcpy(fils, di->di_fils, cnt * sizeof(FILEINFO *));
-			chgive(di->di_fils, cnt * sizeof(FILEINFO *));
-			di->di_fils = fils;
-			fils = di->di_fils + cnt;
-		}
-		needdot = 1;
-		for (p = pff->ff_name, namlen = 0; (c = *p) != '\0'; p++, namlen++)
-			if (c == '.')
-				needdot = 0;
-		*fils = f = (FILEINFO *)challoc(sizeof(FILEINFO), 1);
-		f->fi_name = p = (char *)challoc(namlen + needdot + 1, 0);
-		for (p1 = pff->ff_name; (c = *p1) != '\0'; p1++)
-			*(p++) = mylower(c);
-		if (needdot)
-			*(p++) = '.';
-		*p = '\0';
-		f->fi_attrib = pff->ff_attrib;
-		f->fi_rep = NULL;
-		cnt++;
-		fils++;
-	} while (findnext(pff) == 0);
-	qsort(di->di_fils, cnt, sizeof(FILEINFO *), fcmp);
-	di->di_nfils = cnt;
-}
-
-#else
 /* checkdir, takedir for Un*x */
 
 static HANDLE *checkdir(p, pathend, which)
@@ -1819,7 +1310,6 @@ static void takedir(p, di, sticky)
 }
 
 /* end of Un*x checkdir, takedir; back to general program */
-#endif
 
 
 static int fcmp(pf1, pf2)
@@ -1916,9 +1406,6 @@ static int match(pat, s, start1, len1)
 	int *len1;
 {
 	char c;
-#ifdef IS_MSDOS
-	char *olds;
-#endif
 
 	*start1 = 0;
 	for(;;)
@@ -1926,22 +1413,6 @@ static int match(pat, s, start1, len1)
 		case '\0':
 		case SLASH:
 			return(*s == '\0');
-#ifdef IS_MSDOS
-		case '!':
-			*start1 = olds = s;
-			if ((s = strchr(s, '.')) == NULL)
-				return(0);
-			s++;
-			*len1 = s - olds;
-			if ((c = *(++pat)) == '\0') {
-				*len1 += strlen(s);
-				return(1);
-			}
-			for ( ; !match(pat, s, start1 + 1, len1 + 1); (*len1)++, s++)
-				if (*s == '\0')
-					return(0);
-			return(1);
-#endif
 		case '*':
 			*start1 = s;
 			if ((c = *(++pat)) == '\0') {
@@ -1951,9 +1422,6 @@ static int match(pat, s, start1, len1)
 			else {
 				for (*len1=0; !match(pat, s, start1+1, len1+1); (*len1)++, s++)
 					if (
-#ifdef IS_MSDOS
-						*s == '.' ||
-#endif
 						*s == '\0'
 					)
 						return(0);
@@ -1961,9 +1429,6 @@ static int match(pat, s, start1, len1)
 			}
 		case '?':
 			if (
-#ifdef IS_MSDOS
-				*s == '.' ||
-#endif
 				*s == '\0'
 			)
 				return(0);
@@ -2025,10 +1490,8 @@ static int match(pat, s, start1, len1)
 static void makerep()
 {
 	int l, x;
-#ifndef IS_MSDOS
 	int i, cnv;
 	char *q;
-#endif
 	char *p, *pat, c, pc;
 
 	repbad = 0;
@@ -2036,7 +1499,6 @@ static void makerep()
 	for (pat = to, l = 0; (c = *pat) != '\0'; pat++, l++) {
 		if (c == '#') {
 			c = *(++pat);
-#ifndef IS_MSDOS
 			if (c == 'l') {
 				cnv = LOWER;
 				c = *(++pat);
@@ -2047,7 +1509,6 @@ static void makerep()
 			}
 			else
 				cnv = STAY;
-#endif
 			for(x = 0; ;x *= 10) {
 				x += c - '0';
 				c = *(pat+1);
@@ -2058,28 +1519,10 @@ static void makerep()
 			--x;
 			if (l + len[x] >= MAXPATH)
 				goto toolong;
-#ifdef IS_MSDOS
-			if (
-				*(start[x]) == '.' &&
-				(
-					p == fullrep ||
-					*(p - 1) == SLASH
-				)
-			) {
-				repbad = 1;
-				if (l + STRLEN(EMPTY) >= MAXPATH)
-					goto toolong;
-				strcpy(p, EMPTY);
-				p += STRLEN(EMPTY);
-				l += STRLEN(EMPTY);
-			}
-#else
 			switch (cnv) {
 			case STAY:
-#endif
 				memmove(p, start[x], len[x]);
 				p += len[x];
-#ifndef IS_MSDOS
 				break;
 			case LOWER:
 				for (i = len[x], q = start[x]; i > 0; i--, p++, q++)
@@ -2089,7 +1532,6 @@ static void makerep()
 				for (i = len[x], q = start[x]; i > 0; i--, p++, q++)
 					*p = myupper(*q);
 			}
-#endif
 		}
 		else {
 			if (c == ESC)
@@ -2098,9 +1540,6 @@ static void makerep()
 				goto toolong;
 			if (
 				(
-#ifdef IS_MSDOS
-					c == '.' ||
-#endif
 					c == SLASH
 				) &&
 				(
@@ -2108,9 +1547,6 @@ static void makerep()
 					(
 						(
 							(pc = *(p - 1)) == SLASH
-#ifdef IS_MSDOS
-							|| pc == ':'
-#endif
 						) &&
 					 	*(pat - 1) != pc
 					)
@@ -2310,35 +1746,21 @@ static int baddel(p)
 		printf("%s%s -> %s%s : old %s%s was to be done first.\n",
 			hnf, f, hnt, t, hnt, t);
 	else if (
-#ifdef IS_MSDOS
-		fto->fi_attrib & FA_DIREC
-#else
 		fto->fi_stflags & FI_ISDIR
-#endif
 	)
 		printf("%s%s -> %s%s : %s%s%s is a directory.\n",
 			hnf, f, hnt, t, (op & APPEND) ? "" : "old ", hnt, t);
-#ifndef IS_MSDOS
 	else if ((fto->fi_stflags & FI_NODEL) && !(op & (APPEND | OVERWRITE)))
 		printf("%s%s -> %s%s : old %s%s lacks delete permission.\n",
 			hnf, f, hnt, t, hnt, t);
-#endif
 	else if (
 		(op & (APPEND | OVERWRITE)) &&
-#ifdef IS_MSDOS
-		fto->fi_attrib & FA_RDONLY
-#else
 		!fwritable(hnt, fto)
-#endif
 	) {
 		printf("%s%s -> %s%s : %s%s %s.\n",
 			hnf, f, hnt, t, hnt, t,
-#ifndef IS_MSDOS
-#ifdef S_IFLNK
 			fto->fi_stflags & FI_LINKERR ?
 			"is a badly aimed symbolic link" :
-#endif
-#endif
 			"lacks write permission");
 	}
 	else
@@ -2357,14 +1779,8 @@ static int skipdel(p)
 		p->r_hfrom->h_name, p->r_ffrom->fi_name,
 		p->r_hto->h_name, p->r_nto);
 	if (
-#ifdef IS_MSDOS
-		p->r_fdel->fi_attrib & FA_RDONLY
-#else
-#ifdef S_IFLNK
 		!(p->r_ffrom->fi_stflags & FI_ISLNK) &&
-#endif
 		!fwritable(p->r_hto->h_name, p->r_fdel)
-#endif
 	)
 		fprintf(stderr, "old %s%s lacks write permission. delete it",
 			p->r_hto->h_name, p->r_nto);
@@ -2399,11 +1815,7 @@ static void doreps()
 	REP *first, *p;
 	long aliaslen = 0l;
 
-#ifdef IS_MSDOS
-	ctrlbrk(breakrep);
-#else
 	signal(SIGINT, breakrep);
-#endif
 
 	for (first = hrep.r_next, k = 0; first != NULL; first = first->r_next) {
 		for (p = first; p != NULL; p = p->r_thendo, k++) {
@@ -2434,15 +1846,11 @@ static void doreps()
 					(op & (COPY | APPEND)) ?
 						copy(p->r_ffrom,
 							p->r_flags & R_ISALIASED ? aliaslen : -1L) :
-#ifndef IS_MSDOS
 					(op & HARDLINK) ?
 						link(pathbuf, fullrep) :
-#ifdef S_IFLNK
 					(op & SYMLINK) ?
 						symlink((p->r_flags & R_ONEDIRLINK) ? fstart : pathbuf,
 							fullrep) :
-#endif
-#endif
 					p->r_flags & R_ISX ?
 						copymove(p) :
 					/* move */
@@ -2481,18 +1889,6 @@ static long appendalias(first, p, pprintaliased)
 {
 	long ret = 0l;
 
-#ifdef IS_MSDOS
-	int fd;
-
-	if ((fd = open(fullrep, O_RDONLY | O_BINARY, 0)) < 0) {
-		fprintf(stderr, "stat on %s has failed.\n", fullrep);
-		*pprintaliased = snap(first, p);
-	}
-	else {
-		ret = filelength(fd);
-		close(fd);
-	}
-#else
 	struct stat fstat;
 
 	if (stat(fullrep, &fstat)) {
@@ -2501,7 +1897,6 @@ static long appendalias(first, p, pprintaliased)
 	}
 	else
 		ret = fstat.st_size;
-#endif
 
 	return(ret);
 }
@@ -2543,20 +1938,14 @@ static int snap(first, p)
 		exit(1);
 
 	failed = 1;
-#ifdef IS_MSDOS
-	ctrlbrk((int (*)())breakstat);
-#else
 	signal(SIGINT, breakstat);
-#endif
 	if (
 		badstyle == ASKBAD &&
 		isatty(fileno(stdout)) &&
 		getreply("Redirect standard output to file? ", 0)
 	) {
 		redirected = 1;
-#ifndef IS_MSDOS
 		umask(oldumask);
-#endif
 		while (
 			fprintf(stderr, "File name> "),
 			(outfile = fopen(mygets(fname, 80), "w")) == NULL
@@ -2621,19 +2010,6 @@ static void quit()
 static int copymove(p)
 	REP *p;
 {
-#ifndef IS_MSDOS
-#ifndef IS_SYSV
-	{
-		int llen;
-		char linkbuf[MAXPATH];
-
-		if ((llen = readlink(pathbuf, linkbuf, MAXPATH - 1)) >= 0) {
-			linkbuf[llen] = '\0';
-			return(symlink(linkbuf, fullrep) || myunlink(pathbuf, p->r_ffrom));
-		}
-	}
-#endif
-#endif
 	return(copy(p->r_ffrom, -1L) || myunlink(pathbuf, p->r_ffrom));
 }
 
@@ -2648,63 +2024,27 @@ static int copy(ff, len)
 {
 	char buf[BUFSIZE];
 	int f, t, k, mode, perm;
-#ifdef IS_MSDOS
-        char c;
-	struct ftime tim;
-#else
-#ifdef IS_SYSV
 	struct utimbuf tim;
-#else
-	struct timeval tim[2];
-#endif
 	struct stat fstat;
-#endif
 
 	if ((f = open(pathbuf, O_RDONLY | O_BINARY, 0)) < 0)
 		return(-1);
 	perm =
-#ifdef IS_MSDOS
-		IRWMASK		/* will _chmod it later (to get all the attributes) */
-#else
 		(op & (APPEND | OVERWRITE)) ?
 			(~oldumask & RWMASK) | (ff->fi_mode & ~RWMASK) :
 			ff->fi_mode
-#endif
 		;
 
-#ifdef IS_V7
-	if (
-		!(op & APPEND) ||
-		(((t = open(fullrep, O_RDWR)) < 0 && errno == ENOENT)
-	)
-		t = creat(fullrep, perm);
-#else
 	mode = O_CREAT | (op & APPEND ? 0 : O_TRUNC) |
-#ifdef IS_MSDOS
-		O_BINARY | (op & ZAPPEND ? O_RDWR : O_WRONLY)
-#else
 		O_WRONLY
-#endif
 		;
 	t = open(fullrep, mode, perm);
-#endif
 	if (t < 0) {
 		close(f);
 		return(-1);
 	}
 	if (op & APPEND)
 		lseek(t, (off_t)0, SEEK_END);
-#ifdef IS_MSDOS
-	if (op & ZAPPEND && filelength(t) != 0) {
-		if (lseek(t, -1L, 1) == -1L || read(t, &c, 1) != 1) {
-			close(f);
-			close(t);
-			return(-1);
-		}
-		if (c == 26)
-			lseek(t, -1L, 1);
-	}
-#endif
 	if ((op & APPEND) && len != (off_t)-1) {
 		while (
 			len != 0 &&
@@ -2720,25 +2060,12 @@ static int copy(ff, len)
 			;
 	if (!(op & (APPEND | OVERWRITE)))
 		if (
-#ifdef IS_MSDOS
-			getftime(f, &tim) ||
-			setftime(t, &tim) ||
-			_chmod(fullrep, 1, ff->fi_attrib) == -1
-#else
 			stat(pathbuf, &fstat) ||
 			(
-#ifdef IS_SYSV
 				tim.actime = fstat.st_atime,
 				tim.modtime = fstat.st_mtime,
-#else
-				tim[0].tv_sec = fstat.st_atime,
-				tim[0].tv_usec = 0,
-				tim[1].tv_sec = fstat.st_mtime,
-				tim[1].tv_usec = 0,
-#endif
 				utimes(fullrep, tim)
 			)
-#endif
 		)
 			fprintf(stderr, "Strange, couldn't transfer time from %s to %s.\n",
 				pathbuf, fullrep);
@@ -2753,70 +2080,11 @@ static int copy(ff, len)
 	return(0);
 }
 
-#ifdef MV_DIR
-
-#include <errno.h>
-extern int errno;
-
-static int rename(from, to)
-	char *from, *to;
-{
-	int pid;
-
-	if (link(from, to) == 0 && unlink(from) == 0)
-	    return(0);
-	else {
-		struct stat s;
-		if (stat(from, &s) < 0 || (s.st_mode&S_IFMT) != S_IFDIR)
-			return(-1);
-	}
-
-	do pid = fork(); while (pid >= 0 && errno == EAGAIN);
-
-	if (pid < 0)
-	    return(-1);
-	else if (pid == 0) {
-	    execl(MV_DIR, "mv_dir", from, to, (char *) 0);
-	    perror(MV_DIR);
-	    exit(errno);
-	} else if (pid > 0) {
-	    int wid;
-	    int status;
-
-	    do wid = wait(&status);
-	    while (wid != pid && wid >= 0);
-
-	    return(status == 0 ? 0 : -1);
-	}
-}
-#else
-#ifndef HAS_RENAME
-static int rename(from, to)
-	char *from, *to;
-{
-	if (link(from, to))
-		return(-1);
-	if (unlink(from)) {
-		unlink(to);
-		return(-1);
-	}
-	return(0);
-}
-#endif
-#endif /* MV_DIR */
 
 static int myunlink(n, f)
 	char *n;
 	FILEINFO *f;
 {
-#ifdef IS_MSDOS
-	int a;
-
-	if (((a = f->fi_attrib) & FA_RDONLY) && _chmod(n, 1, a & ~FA_RDONLY) < 0) {
-		fprintf(stderr, "Strange, can not _chmod (or unlink) %s.\n", f);
-		return(-1);
-	}
-#endif
 	if (unlink(n)) {
 		fprintf(stderr, "Strange, can not unlink %s.\n", n);
 		return(-1);
@@ -2919,26 +2187,6 @@ static void chgive(p, k)
 }
 
 
-#ifndef __STDC__
-#ifndef IS_MSDOS
-#ifndef IS_SYSV
-static void memmove(to, from, k)
-	char *to, *from;
-	unsigned k;
-{
-	if (from > to)
-		while (k-- != 0)
-			*(to++) = *(from++);
-	else {
-		from += k;
-		to += k;
-		while (k-- != 0)
-			*(--to) = *(--from);
-	}
-}
-#endif
-#endif
-#endif
 
 
 static int mygetc()
@@ -2969,32 +2217,3 @@ static char *mygets(s, l)
 }
 
 
-#ifdef IS_MSDOS
-static int leave()
-{
-	return(0);
-}
-
-static void cleanup()
-{
-	int i;
-
-	if (patch.ph_safeid) {
-		for (i = 0; i < nhandles; i++) {
-			if (!(handles[i]->h_di->di_flags & DI_CLEANED)) {
-				sprintf(pathbuf, "%s%s%03d",
-					handles[i]->h_name, IDF, handles[i]->h_di->di_did);
-				if (unlink(pathbuf))
-					fprintf(stderr, "Strange, couldn't unlink %s.\n", pathbuf);
-				handles[i]->h_di->di_flags |= DI_CLEANED;
-			}
-		}
-	}
-/*
-	Write device availability: undocumented internal MS-D*S function.
-	Restore previous value.
-*/
-	bdos(0x37, olddevflag, 3);
-}
-
-#endif
