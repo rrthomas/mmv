@@ -1,0 +1,49 @@
+This is the Debian GNU/Linux prepackaged version of mmv.
+
+This package was put together by Michael Meskes <meskes@debian.org>,
+from sources obtained from USENET.
+
+It was maintained by Bernd Eckenfels <ecki@debian.org> with some
+enhancements (NLS Char Support, glibc compiles) from Bernd and kind
+contributions from Hartmut Koptein <koptein@et-inf.fho-emden.de>.
+
+At the moment it is maintained by Rhonda D'Vine <rhonda@debian.org>
+and Axel Beckert <abe@debian.org>.
+
+Copyright (c) 1989 Vladimir Lanin
+
+Mmv is freeware. That means that the entire package of software and
+documentation is copyrighted, and may not be distributed with any
+modifications or for any charge (without the author's explicit written
+permission). Other than that, it may be used and distributed freely.
+
+Vladimir Lanin
+330 Wadsworth Ave, Apt 6F
+New York, NY 10040
+
+lanin@csd2.nyu.edu
+...!cmcl2!csd2!lanin
+
+However, Vladimir told me:
+
+Michael,
+
+This message is to serve as an announcement that I am changing the
+copyright of mmv to GPL.
+
+If this message is in any way insufficient to do so, please tell me what
+I have to do. Please keep in mind that I do not have in hand either the
+full GPL text or the source code of the last mmv release (oops).
+
+If there is any other way that I can help out, please tell me.
+
+Thanks,
+
+Vladimir Lanin
+vlad@brm.com
+
+Thanks to Joost for getting into touch with him.
+
+On Debian systems, the complete text of the GNU General Public License
+can be found in /usr/share/common-licenses/GPL-2 file, later versions
+can be found in the same directory.
