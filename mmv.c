@@ -82,6 +82,7 @@ Use -- as the end of options.\n";
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
+#include <utime.h>
 
 #include <dirent.h>
 typedef struct dirent DIRENTRY;
@@ -105,16 +106,6 @@ static char TTY[] = "/dev/tty";
 #include <string.h>
 #include <signal.h>
 #include <fcntl.h>
-
-
-/* for System V and Version 7*/
-struct utimbuf {
-	time_t actime;
-	time_t modtime;
-};
-#define utimes(f, t) utime((f), &(t))
-
-
 
 
 #define mylower(c) (isupper(c) ? (c)-'A'+'a' : (c))
@@ -2064,7 +2055,7 @@ static int copy(ff, len)
 			(
 				tim.actime = fstat.st_atime,
 				tim.modtime = fstat.st_mtime,
-				utimes(fullrep, tim)
+				utime(fullrep, &tim)
 			)
 		)
 			fprintf(stderr, "Strange, couldn't transfer time from %s to %s.\n",
