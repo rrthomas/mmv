@@ -1,0 +1,82 @@
+From ibmbin-request@crdgw1.crd.ge.com Wed Aug 22 16:41:24 1990
+From: ibmbin-request@crdgw1.crd.ge.com
+Newsgroups: comp.binaries.ibm.pc
+Subject: v07i204: mmv10src, source for mmv10 file mover (part 01/02)
+Summary: Move files
+Date: 21 Aug 90 05:07:19 GMT
+Followup-To: comp.binaries.ibm.pc.d
+X-Submissions-to: ibmbin@crdgw1.crd.ge.com
+X-Questions-to: ibmbin-request@crdgw1.crd.ge.com
+
+Checksum: 3252004976  (Verify with "brik -cv")
+Posting-number: Volume 07, Issue 204
+Submitted-by: lanin@csd4.cs.nyu.edu
+Archive-name: mmv10src/part01
+
+This is the source for mmv10.
+
+
+[
+Checksums obtained with the 4.3BSD "sum" or System V "sum -r" command.
+
+checksum     size (bytes)  file (between BEGIN--cut and END--cut lines)
+   65341        28171      part01
+    8782        27866      part02
+
+checksum     size (bytes)  file
+   53647        40648      mmv10src.zoo
+
+-- bill
+]
+
+mmv10src part01/02
+BEGIN--cut here--cut here
+END--cut here--cut here
+
+From ibmbin-request@crdgw1.crd.ge.com Wed Aug 22 16:41:30 1990
+From: ibmbin-request@crdgw1.crd.ge.com
+Newsgroups: comp.binaries.ibm.pc
+Subject: v07i205: mmv10src, source for mmv10 file mover (part 02/02)
+Summary: Move files
+Date: 21 Aug 90 05:07:27 GMT
+Followup-To: comp.binaries.ibm.pc.d
+X-Submissions-to: ibmbin@crdgw1.crd.ge.com
+X-Questions-to: ibmbin-request@crdgw1.crd.ge.com
+
+Checksum:  550153189  (Verify with "brik -cv")
+Posting-number: Volume 07, Issue 205
+Submitted-by: lanin@csd4.cs.nyu.edu
+Archive-name: mmv10src/part02
+
+mmv10src part02/02
+BEGIN--cut here--cut here
+END--cut here--cut here
+
+
+From murthy@algron.cs.cornell.edu Mon Jun 18 15:35:14 1990
+From: murthy@algron.cs.cornell.edu (Chet Murthy)
+Newsgroups: comp.sources.bugs
+Subject: MMV patch HIGH priority
+Date: 9 Jun 90 21:03:03 GMT
+Distribution: comp
+Organization: Cornell Univ. CS Dept. Ithaca NY
+Status: RO
+
+I'm posting this for Vladimir Lanin:
+
+The following patch fixes a number of bugs in mmv 1.0
+(as distributed on comp.sources.unix)
+and provides V7 compatibility.
+The new version is known as mmv 1.01b.
+
+Since one of the bugs can result in the unintended DELETION
+of the source file, it is imperative that the old version
+be replaced with the new one.
+
+The two major bugs fixed are:
+1) in its BSD reincarnation, whenever a file had to be moved between devices
+(by copying, then deleting), mmv 1.0 made a symbolic link to "/" instead
+of copying the file. It still deleted the original, though. Oops!
+2) the uppercase/lowercase conversion feature did not work.
+
+Vladimir Lanin

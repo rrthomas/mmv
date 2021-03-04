@@ -1,0 +1,710 @@
+.\" Under BSD, just give to nroff or troff (with -man).
+.\" To print the MS-DOS version, use option -rO2.
+.\" Under System V, take out the '.\"  ' from the next line.
+.\" .nr O 1
+.TH MMV 1 "November 20, 2001 (v1.0lfs)"
+.ie !'\nO'2' \{\
+.SH NAME
+mmv \- move/copy/append/link multiple files by wildcard patterns
+\}
+.el \{
+.SH NAME
+mmv \- move/copy/append multiple files by wildcard patterns
+\}
+.ie '\nO'2' \{\
+.ds SL \\\\
+.ds ES '
+\}
+.el \{\
+.ds SL /
+.ds ES \\\\
+\}
+.SH SYNOPSIS
+.B mmv
+.if '\nO'2' [\fB\-m\fP|\fBx\fP|\fBr\fP|\fBc\fP|\fBo\fP|\fBa\fP|\fBz\fP]
+.if '\nO'0' [\fB\-m\fP|\fBx\fP|\fBr\fP|\fBc\fP|\fBo\fP|\fBa\fP|\fBl\fP|\fBs\fP]
+.if '\nO'1' [\fB\-m\fP|\fBx\fP|\fBr\fP|\fBc\fP|\fBo\fP|\fBa\fP|\fBl\fP]
+[\fB\-h\fP]
+[\fB\-d\fP|\fBp\fP]
+[\fB\-g\fP|\fBt\fP]
+[\fB\-v\fP|\fBn\fP]
+[\fB\-\-\fP]
+[\fBfrom to\fP]
+.if '\nO'2' \{\
+.br
+.B mmvpatch
+[\fBexecutable\fP]
+\}
+.SH "EXAMPLES"
+Rename all
+.I *.jpeg
+files in the current directory to
+\fI*.jpg\fR:
+
+.in +3
+mmv '*.jpeg' '#1.jpg'
+.in -3
+
+Replace the first occurrence of
+.I abc
+with
+.I xyz
+in all files in the current directory:
+
+.in +3
+mmv '*abc*' '#1xyz#2'
+.in -3
+
+Rename files ending in \fI.html.en\fR, \fI.html.de\fR, etc. to ending
+in \fI.en.html\fR, \fI.de.html\fR, etc. in the current directory:
+
+.in +3
+mmv '*.html.??' '#1.#2#3.html'
+.in -3
+
+Rename music files from
+.I <track no.> - <interpreter> - <song title>.ogg
+to
+.I <interpreter> - <track no.> - <song title>.ogg
+in the current directory:
+
+.in +3
+mmv '* - * - *.ogg' '#2 - #1 - #3.ogg'
+.in -3
+
+.SH "DESCRIPTION"
+.I Mmv
+moves (or copies,
+.ie '\nO'2' or appends,
+.el appends, or links,
+as specified)
+each source file matching a
+.I from
+pattern to the target name specified by the
+.I to
+pattern.
+This multiple action is performed safely,
+i.e. without any unexpected deletion of files
+due to collisions of target names with existing filenames
+or with other target names.
+Furthermore, before doing anything,
+.I mmv
+attempts to detect any errors that would result
+from the entire set of actions specified
+and gives the user the choice of either
+proceeding by avoiding the offending parts
+or aborting.
+.I mmv
+does support large files (LFS) but it does *NOT* support 
+sparse files (i.e. it explodes them).
+
+.ce
+The Task Options
+.PP
+Whether
+.I mmv
+moves, copies,
+.ie '\nO'2' or appends
+.el appends, or links
+is governed by the first set of options given
+above.
+If none of these are specified,
+.ie '\nO'2' \{\
+a default (patchable by
+.IR mmvpatch ,
+and initially \-x)
+determines the task.
+\}
+.el \{\
+the task is given by the command name under which
+.I mmv
+was invoked (argv[0]):
+
+	command name	default task
+
+	mmv			\-x
+.br
+	mcp			\-c
+.br
+	mad			\-a
+.br
+	mln			\-l
+\}
+.PP
+The task option choices are:
+.TP
+\-m :
+move source file to target name.
+Both must be on the same device.
+Will not move directories.
+.if '\nO'0' \{\
+If the source file is a symbolic link,
+moves the link without checking if the link's target from the new
+directory is different than the old.
+\}
+.TP
+\-x :
+same as \-m, except cross-device moves are done
+by copying, then deleting source.
+When copying, sets the
+.ie !'\nO'2' permission bits
+.el attributes
+and file modification time
+of the target file to that of the source file.
+.TP
+\-r :
+rename source file or directory to target name.
+The target name must not include a path:
+the file remains in the same directory in all cases.
+This option is the only way of renaming directories under
+.IR mmv .
+.if '\nO'2' It is only available under DOS version 3.0 or higher.
+.TP
+\-c :
+copy source file to target name.
+Sets the file modification time and
+.ie !'\nO'2' permission bits
+.el attributes
+of the target file to that of the source file,
+regardless of whether the target file already exists.
+Chains and cycles (to be explained below) are not allowed.
+.TP
+\-o :
+overwrite target name with source file.
+.ie '\nO'2' \{\
+If target file exists, its attributes are left unchanged.
+If not, it is created with ordinary attributes
+unrelated to the source file's attributes.
+In either case, the file modification time is set to the current time.
+\}
+.el \{\
+If target file exists, it is overwritten,
+keeping its original owner and permission bits.
+If it does not exist, it is created, with read-write permission bits
+set according to
+.IR umask (1),
+and the execute permission bits copied from the source file.
+In either case, the file modification time is set to the current time.
+\}
+.TP
+\-a :
+append contents of source file to target name.
+Target file modification time is set to the current time.
+If target file does not exist,
+it is created with
+.ie '\nO'2' attributes
+.el permission bits
+set as under \-o.
+Unlike all other options, \-a allows multiple source files to have the
+same target name, e.g. "mmv \-a
+.ie '\nO'2' *.c
+.el \\*.c
+big" will append all ".c" files to "big".
+Chains and cycles are also allowed, so "mmv \-a f f" will double up "f".
+.ie '\nO'2' \{\
+.TP
+\-z :
+same as \-a, but if the target file exists, and its last character is a ^Z,
+and the source file is not empty,
+this ^Z is truncated before doing the append.
+\}
+.el \{\
+.TP
+\-l :
+link target name to source file.
+Both must be on the same device,
+and the source must not be a directory.
+Chains and cycles are not allowed.
+.if '\nO'0' \{\
+.TP
+\-s :
+same as \-l, but use symbolic links instead of hard links.
+For the resulting link to aim back at the source,
+either the source name must begin with a '/',
+or the target must reside in either the current or the source directory.
+If none of these conditions are met, the link is refused.
+However, source and target can reside on different devices,
+and the source can be a directory.
+\}
+\}
+.PP
+Only one of these option may be given,
+and it applies to all matching files.
+Remaining options need not be given separately,
+i.e. "mmv \-mk" is allowed.
+
+.ce
+Multiple Pattern Pairs / Reading Patterns from STDIN
+.PP
+Multiple
+.I from
+--
+.I to
+pattern pairs may be specified by omitting
+the pattern pair on the command line,
+and entering them on the standard input,
+one pair per line.
+(If a pattern pair is given on the command line,
+the standard input is not read.)
+Thus,
+
+.in +3
+mmv
+.br
+a b
+.br
+c d
+.in -3
+
+would rename "a" to "b" and "c" to "d".
+If a file can be matched to several of the given
+.I from
+patterns,
+the
+.I to
+pattern of the first matching pair is used.
+Thus,
+
+.in +3
+mmv
+.br
+a b
+.br
+a c
+.in -3
+
+would give the error message "a \-> c : no match" because file "a"
+(even if it exists)
+was already matched by the first pattern pair.
+
+\fBWARNING:\fR This operation mode does \fBnot\fR work if the patterns
+itself contain \fBspaces\fR.  See
+.I http://bugs.debian.org/149873
+for details.
+
+.ce
+The \fIFrom\fP Pattern
+.PP
+The
+.I from
+pattern is a filename
+with embedded wildcards: '*', '?', '['...']',
+.if '\nO'2' \{\
+\'!',
+\}
+and ';'.
+The first three have their usual
+.IR sh (1)
+meanings of, respectively,
+matching any string of characters,
+matching any single character,
+and matching any one of a set of characters.
+.PP
+Between the '[' and ']', a range from character 'a' through character 'z'
+is specified with "a\-z".
+The set of matching characters can be negated by inserting
+a '^' after the '['.
+Thus, "[^b\-e2\-5_]"
+will match any character but 'b' through 'e', '2' through '5', and '_'.
+.if '\nO'2' \{\
+.PP
+Unlike DOS wildcards,
+all mmv wildcards (except for cases listed below)
+can occur anywhere in the pattern,
+whether preceding or following explicit characters or other wildcards.
+For example, the pattern "*z\\foo.bar" will search
+for files named "foo.bar" in all subdirectories whose names end in 'z'.
+However, no wildcards can occur in the drive letter.
+.PP
+The character '.' is not matched by any of '*', '?', or '['...']'.
+Thus, the pattern "*" will only match files with a null extension.
+To save yourself some typing, use the '!' wildcard instead,
+which matches the same as "*.*",
+except it is assigned only one wildcard index (see below).
+Thus, both "f!" and "f*.*"
+will match all of "f", "f.ext", "foo", and "foo.ext",
+while "f*" will match only the first and the third.
+\}
+.PP
+Note that paths are allowed in the patterns,
+and wildcards may be intermingled with slashes arbitrarily.
+The ';' wildcard
+is useful for matching files at any depth in the directory tree.
+It matches the same as "*\*(SL" repeated any number of times, including zero,
+and can only occur either at the beginning of the pattern
+or following a '\*(SL'.
+Thus ";*.c" will match all ".c" files in or below the current directory,
+while "\*(SL;*.c" will match them anywhere on the file system.
+.if !'\nO'2' \{\
+.PP
+In addition, if the
+.I from
+pattern
+(or the
+.I to
+pattern)
+begins with "~/", the '~' is replaced with the home directory name.
+(Note that the "~user" feature of
+.IR csh (1)
+is not implemented.)
+However, the '~' is not treated as a wildcard,
+in the sense that it is not assigned a wildcard index (see below).
+\}
+.PP
+Since matching a directory under a task option other than \-r or \-s
+would result in an error,
+tasks other than \-r and \-s
+match directories only against completely explicit
+.I from
+patterns (i.e. not containing wildcards).
+Under \-r and \-s, this applies only to "." and "..".
+.PP
+.ie '\nO'2' \{\
+Hidden and system files are also only matched
+against completely explicit
+.I from
+patterns.
+\}
+.el \{\
+Files beginning with '.' are only matched against
+.I from
+patterns that begin with an explicit '.'.
+\}
+However, if \-h is specified, they are matched normally.
+.if !'\nO'2' \{\
+.PP
+Warning: since the shell normally expands wildcards
+before passing the command-line arguments to
+.IR mmv ,
+it is usually necessary to enclose the command-line
+.I from
+and
+.I to
+patterns in quotes.
+\}
+
+.ce
+The \fITo\fP Pattern
+.PP
+The
+.I to
+pattern is a filename
+with embedded
+.I wildcard
+.IR indexes ,
+where an index consists of the character '#'
+followed by a string of digits.
+When a source file matches a
+.I from
+pattern,
+a target name for the file is constructed out of the
+.I to
+pattern by
+replacing the wildcard indexes by the
+actual characters that matched the referenced wildcards
+in the source name.
+Thus, if the
+.I from
+pattern is "abc*.*" and the
+.I to
+pattern is "xyz#2.#1",
+then "abc.txt" is targeted to "xyztxt.".
+(The first '*' matched "", and the second matched "txt".)
+Similarly, for the pattern pair ";*.[clp]" \-> "#1#3\*(SL#2",
+"foo1\*(SLfoo2\*(SLprog.c" is targeted to "foo1\*(SLfoo2\*(SLc\*(SLprog".
+Note that there is no '\*(SL' following the "#1" in the
+.I to
+pattern,
+since the string matched by any ';' is always either empty
+or ends in a '\*(SL'.
+In this case, it matches "foo1\*(SLfoo2\*(SL".
+.if !'\nO'2' \{\
+.PP
+To convert the string matched by a wildcard
+to either lowercase or uppercase before embedding it in the target name,
+insert 'l' or 'u', respectively,
+between the '#' and the string of digits.
+.PP
+The
+.I to
+pattern,
+like the
+.I from
+pattern,
+can begin with a "~/" (see above).
+This does not necessitate enclosing the
+.I to
+pattern in quotes on the command line
+since
+.IR csh (1)
+expands the '~' in the exact same manner as
+.I mmv
+(or, in the case of
+.IR sh (1),
+does not expand it at all).
+\}
+.PP
+For all task options other than \-r, if the target name is a directory,
+the real target name is formed by appending
+a '\*(SL' followed by the last component
+of the source file name.
+For example, "mmv dir1\*(SLa dir2" will,
+if "dir2" is indeed a directory, actually move "dir1\*(SLa" to "dir2\*(SLa".
+However, if "dir2\*(SLa" already exists and is itself a directory,
+this is considered an error.
+.PP
+To strip any character (e.g. '*', '?', or '#')
+of its special meaning to
+.IR mmv ,
+as when the actual replacement name must contain the character '#',
+precede the special character with a
+.ie '\nO'2' \{\
+single quote (').
+\}
+.el \{\
+\'\\'
+(and enclose the argument in quotes because of the shell).
+\}
+This also works to terminate a wildcard index
+when it has to be followed by a digit in the filename, e.g. "a#1\*(ES1".
+
+.ce
+Chains and Cycles
+.PP
+A chain is a sequence of specified actions where the target name of
+one action refers to the source file of another action.
+For example,
+
+mmv
+.br
+a b
+.br
+b c
+
+specifies the chain "a" \-> "b" \-> "c".
+A cycle is a chain where the last target name
+refers back to the first source file,
+e.g. "mmv a a".
+.I Mmv
+detects chains and cycles regardless of the order in which
+their constituent actions are actually given.
+Where allowed, i.e. in moving, renaming, and appending files,
+chains and cycles are handled gracefully, by performing them in the proper
+order.
+Cycles are broken by first renaming one of the files to a temporary name
+(or just remembering its original size when doing appends).
+
+.ce
+Collisions and Deletions
+.PP
+When any two or more matching files
+would have to be
+.ie '\nO'2' moved or copied
+.el moved, copied, or linked
+to the same target filename,
+.I mmv
+detects the condition as an error before performing any actions.
+Furthermore,
+.I mmv
+checks if any of its actions will result
+in the destruction of existing files.
+If the \-d (delete) option is specified,
+all file deletions or overwrites are done silently.
+Under \-p (protect), all deletions or overwrites
+(except those specified with "(*)" on the standard input, see below)
+are treated as errors.
+And if neither option is specified,
+the user is queried about each deletion or overwrite separately.
+(A new stream to
+.ie '\nO'2' "\\dev\\con"
+.el "/dev/tty"
+is used for all interactive queries,
+not the standard input.)
+
+.ce
+Error Handling
+.PP
+Whenever any error in the user's action specifications is detected,
+an error message is given on the standard output,
+and
+.I mmv
+proceeds to check the rest of the specified actions.
+Once all errors are detected,
+.I mmv
+queries the user whether he wishes
+to continue by avoiding the erroneous actions or to abort altogether.
+This and all other queries may be avoided by specifying either the
+\-g (go) or \-t (terminate) option.
+The former will resolve all difficulties by avoiding the erroneous actions;
+the latter will abort
+.I mmv
+if any errors are detected.
+Specifying either of them defaults
+.I mmv
+to \-p, unless \-d is specified
+(see above).
+Thus, \-g and \-t are most useful when running
+.I mmv
+in the background or in
+a shell script,
+when interactive queries are undesirable.
+
+.ce
+Reports
+.PP
+Once the actions to be performed are determined,
+.I mmv
+performs them silently,
+unless either the \-v (verbose) or \-n (no-execute) option is specified.
+The former causes
+.I mmv
+to report each performed action
+on the standard output as
+
+a \-> b : done.
+
+Here, "a" and "b" would be replaced by the source and target names,
+respectively.
+If the action deletes the old target,
+a "(*)" is inserted after the the target name.
+Also, the "\->" symbol is modified when a cycle has to be broken:
+the '>' is changed to a '^' on the action prior to which the old target
+is renamed to a temporary,
+and the '\-' is changed to a '=' on the action where the temporary is used.
+.PP
+Under \-n, none of the actions are performed,
+but messages like the above are printed on the standard output
+with the ": done." omitted.
+.PP
+The output generated by \-n can (after editing, if desired)
+be fed back to
+.I mmv
+on the standard input
+(by omitting the
+.I from
+--
+.I to
+pair on the
+.I mmv
+command line).
+To facilitate this,
+.I mmv
+ignores lines on the standard input that look
+like its own error and "done" messages,
+as well as all lines beginning with white space,
+and will accept pattern pairs with or without the intervening "\->"
+(or "\-^", "=>", or "=^").
+Lines with "(*)" after the target pattern have the effect of enabling \-d
+for the files matching this pattern only,
+so that such deletions are done silently.
+
+\fBWARNING:\fR This means that \fBunexpected things\fR may happen if
+\fBfiles\fR matched by the patterns contain \fBspaces\fR. See
+.I http://bugs.debian.org/149873
+for details.
+
+When feeding
+.I mmv
+its own output,
+one must remember to specify again the task option (if any)
+originally used to generate it.
+.PP
+Although
+.I mmv
+attempts to predict all mishaps prior to performing any specified actions,
+accidents may happen.
+For example,
+.I mmv
+does not check for adequate free space when copying.
+Thus, despite all efforts,
+it is still possible for an action to fail
+after some others have already been done.
+To make recovery as easy as possible,
+.I mmv
+reports which actions have already been done and
+which are still to be performed
+after such a failure occurs.
+It then aborts, not attempting to do anything else.
+Once the user has cleared up the problem,
+he can feed this report back to
+.I mmv
+on the standard input
+to have it complete the task.
+(The user is queried for a file name to dump this report
+if the standard output has not been redirected.)
+.if '\nO'2' \{\
+
+.ce
+\fIMmvpatch\fP
+.PP
+You can customize a copy of
+.I mmv
+via the
+.I mmvpatch
+utility.
+If you wish to change the default task option,
+run
+.I mmvpatch
+on a copy of
+.I mmv
+named as follows:
+
+	\-x, \-m, \-r		mmv.exe
+.br
+	\-c, \-o			mcp.exe
+.br
+	\-a, \-z			mad.exe
+.PP
+.I Mmvpatch
+also determines the best way to uniquely identify directories.
+As distributed,
+.I mmv
+is set to use a method that is guaranteed to work the same way
+for all versions of DOS,
+but is both slow
+and unable to correctly handle drives
+affected by the
+.I join
+and
+.I subst
+DOS commands.
+Alternatively,
+there is a method that is fast and correct,
+but uses an undocumented DOS feature
+that may not work properly under all versions of DOS.
+(However, 2.0 and 3.3 are known to work.)
+.I Mmv
+does
+.I not
+determine the best method to use on your system
+at run-time since this is too slow.
+The choice is left to
+.I mmvpatch,
+which determines if the fast method works,
+but also allows you to return to the slow method.
+\}
+.SH "EXIT STATUS"
+.I Mmv
+exits with status 1 if it aborts before doing anything,
+with status 2 if it aborts due to failure after completing some of the actions,
+and with status 0 otherwise.
+.if !'\nO'2' \{\
+.SH "SEE ALSO"
+mv(1), cp(1), ln(1), umask(1)
+\}
+.SH "AUTHOR"
+Vladimir Lanin
+.br
+lanin@csd2.nyu.edu
+.SH "BUGS"
+.if !'\nO'2' \{\
+If the search pattern is not quoted,
+the shell expands the wildcards.
+.I Mmv
+then (usually) gives some error message,
+but can not determine that the lack of quotes is the cause.
+.PP
+\}\
+To avoid difficulties in semantics and error checking,
+.I mmv
+refuses to move or create directories.
