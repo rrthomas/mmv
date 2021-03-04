@@ -26,35 +26,6 @@
 			bug reports.
 */
 
-/*
-	Define SYSV to compile under System V.
-	Define both SYSV and V7 to compile under V7.
-	If your System V has a rename() call, define RENAME.
-	Otherwise, mmv will only be able to rename directories (via option -r)
-	when running as the super-user.
-	There is no reason to set the suid bit on mmv if rename() is available.
-	It is important that mmv not be run with effective uid set
-	to any value other than either the real uid or the super-user.
-	Even when running with effective uid set to super-user,
-	mmv will only perform actions permitted to the real uid.
-
-	Define MSDOS to compile under MS-D*S Turbo C 1.5.
-	If you prefer mmv's output to use /'s instead of \'s under MS-D*S,
-	define SLASH.
-
-	When neither MSDOS nor SYSV are defined, compiles under BSD.
-
-	RENAME is automatically defined under MSDOS and BSD.
-
-	If you are running a (UN*X) system that provides the
-	"struct dirent" readdir() directory reading standard,
-	define DIRENT. Otherwise, mmv uses the BSD-like
-	"struct direct" readdir().
-	If your (UN*X) system has neither of these, get the "dirent"
-	by Doug Gwyn, available as gwyn-dir-lib in volume 9
-	of the comp.sources.unix archives.
-*/
-
 static char USAGE[] =
 
 "Usage: \
@@ -74,8 +45,6 @@ Use -- as the end of options.\n";
 #include <unistd.h>
 #include <stdio.h>
 #include <ctype.h>
-
-/* for various flavors of UN*X */
 
 #include <libgen.h>
 #include <stdlib.h>
@@ -102,7 +71,6 @@ typedef dev_t DEVID;
 
 static char TTY[] = "/dev/tty";
 
-/* for System V and BSD */
 #include <string.h>
 #include <signal.h>
 #include <fcntl.h>
