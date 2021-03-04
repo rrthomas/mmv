@@ -5,7 +5,6 @@ CC		=gcc
 LD		=$(CC)
 CONF		=-DIS_SYSV -DHAS_DIRENT -DHAS_RENAME
 CFLAGS		=-O2 $(CONF)
-LDFLAGS		=-s -N
 
 #IBIN		=$(LOCAL)$(ARCH)/bin
 #IMAN		=$(LOCAL)$(ANY)/man
