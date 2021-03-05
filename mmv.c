@@ -842,12 +842,7 @@ static int badrep(HANDLE *hfrom, FILEINFO *ffrom, HANDLE **phto, char **pnto, FI
 	char *f = ffrom->fi_name;
 
 	*pflags = 0;
-	if (
-		(ffrom->fi_stflags & FI_ISDIR) &&
-		!(op & (DIRMOVE | SYMLINK))
-	)
-		printf("%s -> %s : source file is a directory.\n", pathbuf, fullrep);
-	else if ((ffrom->fi_stflags & FI_LINKERR) && !(op & (MOVE | SYMLINK)))
+	if ((ffrom->fi_stflags & FI_LINKERR) && !(op & (MOVE | SYMLINK)))
 		printf("%s -> %s : source file is a badly aimed symbolic link.\n",
 			pathbuf, fullrep);
 	else if ((op & (COPY | APPEND)) && access(pathbuf, R_OK))
