@@ -326,7 +326,7 @@ int main(int argc, char *argv[])
 	return(failed ? 2 : nreps == 0 && (paterr || badreps));
 }
 
-static void init()
+static void init(void)
 {
 	struct stat dstat;
 
@@ -347,10 +347,7 @@ static void init()
 	ndirs = nhandles = 0;
 }
 
-static void procargs(argc, argv, pfrompat, ptopat)
-	int argc;
-	char **argv;
-	char **pfrompat, **ptopat;
+static void procargs(int argc, char **argv, char **pfrompat, char **ptopat)
 {
 	char *p, c;
 	char *cmdname = basename(argv[0]);
@@ -448,8 +445,7 @@ endargs:
 	}
 }
 
-static void domatch(cfrom, cto)
-	char *cfrom, *cto;
+static void domatch(char *cfrom, char *cto)
 {
 	if (cfrom == NULL)
 		while (getpat())
@@ -469,7 +465,7 @@ static void domatch(cfrom, cto)
 	}
 }
 
-static int getpat()
+static int getpat(void)
 {
 	int c, gotit = 0;
 	char extra[MAXPATLEN];
@@ -508,8 +504,7 @@ nextline:
 	return(1);
 }
 
-static int getword(buf)
-	char *buf;
+static int getword(char *buf)
 {
 	int c, prevc, n;
 	char *p;
@@ -537,7 +532,7 @@ static int getword(buf)
 	return(n);
 }
 
-static void matchpat()
+static void matchpat(void)
 {
 	if (parsepat())
 		paterr = 1;
@@ -547,7 +542,7 @@ static void matchpat()
 	}
 }
 
-static int parsepat()
+static int parsepat(void)
 {
 	char *p, *lastname, c;
 	int totwilds, instage, x;
@@ -693,12 +688,7 @@ static int parsepat()
 	return(0);
 }
 
-static int dostage(lastend, pathend, start1, len1, stage, anylev)
-	char *lastend, *pathend;
-	char **start1;
-	int *len1;
-	int stage;
-	int anylev;
+static int dostage(char *lastend, char *pathend, char **start1, int *len1, int stage, int anylev)
 {
 	DIRINFO *di;
 	HANDLE *h, *hto;
@@ -812,9 +802,7 @@ skiplev:
 	return(ret);
 }
 
-static int trymatch(ffrom, pat)
-	FILEINFO *ffrom;
-	char *pat;
+static int trymatch(FILEINFO *ffrom, char *pat)
 {
 	char *p;
 
@@ -832,12 +820,7 @@ static int trymatch(ffrom, pat)
 	return(-1);
 }
 
-static int keepmatch(ffrom, pathend, pk, needslash, dirs, fils)
-	FILEINFO *ffrom;
-	char *pathend;
-	int *pk;
-	int needslash;
-	int dirs, fils;
+static int keepmatch(FILEINFO *ffrom, char *pathend, int *pk, int needslash, int dirs, int fils)
 {
 	*pk = strlen(ffrom->fi_name);
 	if (pathend - pathbuf + *pk + needslash >= MAXPATH) {
@@ -863,13 +846,7 @@ static int keepmatch(ffrom, pathend, pk, needslash, dirs, fils)
 	return(1);
 }
 
-static int badrep(hfrom, ffrom, phto, pnto, pfdel, pflags)
-	HANDLE *hfrom;
-	FILEINFO *ffrom;
-	HANDLE **phto;
-	char **pnto;
-	FILEINFO **pfdel;
-	int *pflags;
+static int badrep(HANDLE *hfrom, FILEINFO *ffrom, HANDLE **phto, char **pnto, FILEINFO **pfdel, int *pflags)
 {
 	char *f = ffrom->fi_name;
 
@@ -930,12 +907,7 @@ static int badrep(hfrom, ffrom, phto, pnto, pfdel, pflags)
 	return(-1);
 }
 
-static int checkto(hfrom, f, phto, pnto, pfdel)
-	HANDLE *hfrom;
-	char *f;
-	HANDLE **phto;
-	char **pnto;
-	FILEINFO **pfdel;
+static int checkto(HANDLE *hfrom, char *f, HANDLE **phto, char **pnto, FILEINFO **pfdel)
 {
 	char tpath[MAXPATH + 1];
 	char *pathend;
@@ -995,8 +967,7 @@ static int checkto(hfrom, f, phto, pnto, pfdel)
 	return(0);
 }
 
-static char *getpath(tpath)
-	char *tpath;
+static char *getpath(char *tpath)
 {
 	char *pathstart, *pathend, c;
 
@@ -1014,19 +985,15 @@ static char *getpath(tpath)
 	return(pathend);
 }
 
-static int badname(s)
-	char *s;
+static int badname(char *s)
 {
-
 	return (
 		(*s == '.' && (s[1] == '\0' || strcmp(s, "..") == 0)) ||
 		strlen(s) > MAXNAMLEN
 	);
 }
 
-static int getstat(ffull, f)
-	char *ffull;
-	FILEINFO *f;
+static int getstat(char *ffull, FILEINFO *f)
 {
 	struct stat fstat;
 	int flags;
@@ -1054,8 +1021,7 @@ static int getstat(ffull, f)
 	return(0);
 }
 
-static int dwritable(h)
-	HANDLE *h;
+static int dwritable(HANDLE *h)
 {
 	char *p = h->h_name, *myp, *lastslash = NULL, *pathend;
 	char *pw = &(h->h_di->di_flags), r;
@@ -1084,9 +1050,7 @@ static int dwritable(h)
 	return(r);
 }
 
-static int fwritable(hname, f)
-	char *hname;
-	FILEINFO *f;
+static int fwritable(char *hname, FILEINFO *f)
 {
 	int r;
 
@@ -1100,9 +1064,7 @@ static int fwritable(hname, f)
 	return(r);
 }
 
-static FILEINFO *fsearch(s, d)
-	char *s;
-	DIRINFO *d;
+static FILEINFO *fsearch(char *s, DIRINFO *d)
 {
 	FILEINFO **fils = d->di_fils;
 	int nfils = d->di_nfils;
@@ -1121,10 +1083,7 @@ static FILEINFO *fsearch(s, d)
 	}
 }
 
-static int ffirst(s, n, d)
-	char *s;
-	int n;
-	DIRINFO *d;
+static int ffirst(char *s, int n, DIRINFO *d)
 {
 	int first, k, last, res;
 	FILEINFO **fils = d->di_fils;
@@ -1149,9 +1108,7 @@ static int ffirst(s, n, d)
 
 /* checkdir, takedir */
 
-static HANDLE *checkdir(p, pathend, which)
-	char *p, *pathend;
-	int which;
+static HANDLE *checkdir(char *p, char *pathend, int which)
 {
 	struct stat dstat;
 	DIRID d;
@@ -1203,10 +1160,7 @@ static HANDLE *checkdir(p, pathend, which)
 	return(h);
 }
 
-static void takedir(p, di, sticky)
-	char *p;
-	DIRINFO *di;
-	int sticky;
+static void takedir(char *p, DIRINFO *di, int sticky)
 {
 	int cnt, room;
 	DIRENTRY *dp;
@@ -1244,14 +1198,12 @@ static void takedir(p, di, sticky)
 /* end of checkdir, takedir; back to general program */
 
 
-static int fcmp(pf1, pf2)
-	const void *pf1, *pf2;
+static int fcmp(const void *pf1, const void *pf2)
 {
 	return(strcmp((*(FILEINFO **)pf1)->fi_name, (*(FILEINFO **)pf2)->fi_name));
 }
 
-static HANDLE *hadd(n)
-	char *n;
+static HANDLE *hadd(char *n)
 {
 	HANDLE **newhandles, *h;
 
@@ -1269,10 +1221,7 @@ static HANDLE *hadd(n)
 	return(h);
 }
 
-static int hsearch(n, which, pret)
-	char *n;
-	int which;
-	HANDLE **pret;
+static int hsearch(char *n, int which, HANDLE **pret)
 {
 	int i;
 	HANDLE **ph;
@@ -1292,9 +1241,7 @@ static int hsearch(n, which, pret)
 	return(0);
 }
 
-static DIRINFO *dadd(v, d)
-	DEVID v;
-	DIRID d;
+static DIRINFO *dadd(DEVID v, DIRID d)
 {
 	DIRINFO *di;
 	DIRINFO **newdirs;
@@ -1315,9 +1262,7 @@ static DIRINFO *dadd(v, d)
 	return(di);
 }
 
-static DIRINFO *dsearch(v, d)
-	DEVID v;
-	DIRID d;
+static DIRINFO *dsearch(DEVID v, DIRID d)
 {
 	int i;
 	DIRINFO *di;
@@ -1328,9 +1273,7 @@ static DIRINFO *dsearch(v, d)
 	return(NULL);
 }
 
-static int match(pat, s, start1, len1)
-	char *pat, *s, **start1;
-	int *len1;
+static int match(char *pat, char *s, char **start1, int *len1)
 {
 	char c;
 
@@ -1413,7 +1356,7 @@ static int match(pat, s, start1, len1)
 		}
 }
 
-static void makerep()
+static void makerep(void)
 {
 	int l, x;
 	int i, cnv;
@@ -1500,7 +1443,7 @@ toolong:
 	strcpy(fullrep, TOOLONG);
 }
 
-static void checkcollisions()
+static void checkcollisions(void)
 {
 	REPDICT *rd, *prd;
 	REP *p, *q;
@@ -1551,8 +1494,7 @@ static void checkcollisions()
 	chgive(rd, oldnreps * sizeof(REPDICT));
 }
 
-static int rdcmp(p1, p2)
-	const void *p1, *p2;
+static int rdcmp(const void *p1, const void *p2)
 {
 	int ret;
 
@@ -1566,7 +1508,7 @@ static int rdcmp(p1, p2)
 	return(ret);
 }
 
-static void findorder()
+static void findorder(void)
 {
 	REP *p, *q, *t, *first, *pred;
 	FILEINFO *fi;
@@ -1601,7 +1543,7 @@ static void findorder()
 		}
 }
 
-static void nochains()
+static void nochains(void)
 {
 	REP *p, *q;
 
@@ -1615,8 +1557,7 @@ static void nochains()
 		}
 }
 
-static void printchain(p)
-	REP *p;
+static void printchain(REP *p)
 {
 	if (p->r_thendo != NULL)
 		printchain(p->r_thendo);
@@ -1626,8 +1567,7 @@ static void printchain(p)
 	p->r_ffrom->fi_rep = MISTAKE;
 }
 
-static void scandeletes(pkilldel)
-	int (*pkilldel)();
+static void scandeletes(int (*pkilldel)(REP *))
 {
 	REP *p, *q, *n;
 
@@ -1651,8 +1591,7 @@ static void scandeletes(pkilldel)
 	}
 }
 
-static int baddel(p)
-	REP *p;
+static int baddel(REP *p)
 {
 	HANDLE *hfrom = p->r_hfrom, *hto = p->r_hto;
 	FILEINFO *fto = p->r_fdel;
@@ -1690,8 +1629,7 @@ static int baddel(p)
 	return(1);
 }
 
-static int skipdel(p)
-	REP *p;
+static int skipdel(REP *p)
 {
 	if (p->r_flags & R_DELOK)
 		return(0);
@@ -1711,7 +1649,7 @@ static int skipdel(p)
 	return(!getreply("? ", -1));
 }
 
-static void goonordie()
+static void goonordie(void)
 {
 	if ((paterr || badreps) && nreps > 0) {
 		fprintf(stderr, "Not everything specified can be done.");
@@ -1726,7 +1664,7 @@ static void goonordie()
 	}
 }
 
-static void doreps()
+static void doreps(void)
 {
 	char *fstart;
 	int k, printaliased = 0, alias = 0;
@@ -1800,9 +1738,7 @@ static void doreps()
 		fprintf(stderr, "Nothing done.\n");
 }
 
-static long appendalias(first, p, pprintaliased)
-	REP *first, *p;
-	int *pprintaliased;
+static long appendalias(REP *first, REP *p, int *pprintaliased)
 {
 	long ret = 0l;
 
@@ -1818,9 +1754,7 @@ static long appendalias(first, p, pprintaliased)
 	return(ret);
 }
 
-static int movealias(first, p, pprintaliased)
-	REP *first, *p;
-	int *pprintaliased;
+static int movealias(REP *first, REP *p, int *pprintaliased)
 {
 	char *fstart;
 	int ret;
@@ -1843,8 +1777,7 @@ static int movealias(first, p, pprintaliased)
 	return(ret);
 }
 
-static int snap(first, p)
-	REP *first, *p;
+static int snap(REP *first, REP *p)
 {
 	char fname[80];
 	int redirected = 0;
@@ -1874,8 +1807,7 @@ static int snap(first, p)
 	return(first != p);
 }
 
-static void showdone(fin)
-	REP *fin;
+static void showdone(REP *fin)
 {
 	REP *first, *p;
 
@@ -1910,14 +1842,13 @@ static void breakstat(int signum)
 	exit(1);
 }
 
-static void quit()
+static void quit(void)
 {
 	fprintf(stderr, "Aborting, nothing done.\n");
 	exit(1);
 }
 
-static int copymove(p)
-	REP *p;
+static int copymove(REP *p)
 {
 	return(copy(p->r_ffrom, -1L) || myunlink(pathbuf, p->r_ffrom));
 }
@@ -1927,9 +1858,7 @@ static int copymove(p)
 #define IRWMASK (S_IREAD | S_IWRITE)
 #define RWMASK (IRWMASK | (IRWMASK >> 3) | (IRWMASK >> 6))
 
-static int copy(ff, len)
-	FILEINFO *ff;
-	off_t len;
+static int copy(FILEINFO *ff, off_t len)
 {
 	char buf[BUFSIZE];
 	int f, t, k, mode, perm;
@@ -1989,9 +1918,7 @@ static int copy(ff, len)
 	return(0);
 }
 
-static int myunlink(n, f)
-	char *n;
-	FILEINFO *f;
+static int myunlink(char *n, FILEINFO *f)
 {
 	if (unlink(n)) {
 		fprintf(stderr, "Strange, can not unlink %s.\n", n);
@@ -2000,9 +1927,7 @@ static int myunlink(n, f)
 	return(0);
 }
 
-static int getreply(m, failact)
-	char *m;
-	int failact;
+static int getreply(char *m, int failact)
 {
 	static FILE *tty = NULL;
 	int c, r;
@@ -2034,8 +1959,7 @@ static int getreply(m, failact)
 	}
 }
 
-static void *myalloc(k)
-	unsigned k;
+static void *myalloc(unsigned k)
 {
 	void *ret;
 
@@ -2048,9 +1972,7 @@ static void *myalloc(k)
 	return(ret);
 }
 
-static void *challoc(k, which)
-	int which;
-	int k;
+static void *challoc(int k, int which)
 {
 	void *ret;
 	CHUNK *p, *q;
@@ -2081,16 +2003,14 @@ static void *challoc(k, which)
 	return(ret);
 }
 
-static void chgive(p, k)
-	void *p;
-	unsigned k;
+static void chgive(void *p, unsigned k)
 {
 	((CHUNK *)p)->ch_len = k - sizeof(CHUNK *);
 	((CHUNK *)p)->ch_next = freechunks;
 	freechunks = (CHUNK *)p;
 }
 
-static int mygetc()
+static int mygetc(void)
 {
 	static int lastc = 0;
 
@@ -2099,9 +2019,7 @@ static int mygetc()
 	return(lastc = getchar());
 }
 
-static char *mygets(s, l)
-	char *s;
-	int l;
+static char *mygets(char *s, int l)
 {
 	char *nl;
 
