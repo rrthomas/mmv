@@ -208,7 +208,7 @@ static int dostage(char *lastend, char *pathend,
 	char **start1, int *len1, int stage, int anylev);
 static int trymatch(FILEINFO *ffrom, char *pat);
 static int keepmatch(FILEINFO *ffrom, char *pathend,
-	int *pk, int needslash, int dirs, int fils);
+	int *pk, int needslash, int fils);
 static int badrep(HANDLE *hfrom, FILEINFO *ffrom,
 	HANDLE **phto, char **pnto, FILEINFO **pfdel, int *pflags);
 static int checkto(HANDLE *hfrom, char *f,
@@ -687,11 +687,7 @@ static int dostage(char *lastend, char *pathend, char **start1, int *len1, int s
 	FILEINFO **pf, *fdel = NULL;
 	char *nto, *firstesc;
 	REP *p;
-	int wantdirs, ret = 1, laststage = (stage + 1 == nstages);
-
-	wantdirs = !laststage ||
-		(op & (DIRMOVE | SYMLINK)) ||
-		(nwilds[nstages - 1] == 0);
+	int ret = 1, laststage = (stage + 1 == nstages);
 
 	if (!anylev) {
 		prelen = stagel[stage] - lastend;
@@ -748,7 +744,7 @@ static int dostage(char *lastend, char *pathend, char **start1, int *len1, int s
 				match(lastend + litlen, (*pf)->fi_name + litlen,
 					start1 + anylev, len1 + anylev)
 			) &&
-			keepmatch(*pf, pathend, &k, 0, wantdirs, laststage)
+			keepmatch(*pf, pathend, &k, 0, laststage)
 		) {
 			if (!laststage)
 				ret &= dostage(stager[stage], pathend + k,
@@ -784,7 +780,7 @@ skiplev:
 		for (pf = di->di_fils, i = 0; i < nfils; i++, pf++)
 			if (
 				*((*pf)->fi_name) != '.' &&
-				keepmatch(*pf, pathend, &k, 1, 1, 0)
+				keepmatch(*pf, pathend, &k, 1, 0)
 			) {
 				*len1 = pathend - *start1 + k;
 				ret &= dostage(lastend, pathend + k, start1, len1, stage, 1);
@@ -811,7 +807,7 @@ static int trymatch(FILEINFO *ffrom, char *pat)
 	return(-1);
 }
 
-static int keepmatch(FILEINFO *ffrom, char *pathend, int *pk, int needslash, int dirs, int fils)
+static int keepmatch(FILEINFO *ffrom, char *pathend, int *pk, int needslash, int fils)
 {
 	*pk = strlen(ffrom->fi_name);
 	if (pathend - pathbuf + *pk + needslash >= MAXPATH) {
@@ -823,10 +819,10 @@ static int keepmatch(FILEINFO *ffrom, char *pathend, int *pk, int needslash, int
 	}
 	strcpy(pathend, ffrom->fi_name);
 	getstat(pathbuf, ffrom);
-	if ((ffrom->fi_stflags & FI_ISDIR) ? !dirs : !fils)
+	if (!(ffrom->fi_stflags & FI_ISDIR) && !fils)
 	{
 		if (verbose)
-			printf("ignoring directory %s\n", ffrom->fi_name);
+			printf("ignoring file %s\n", ffrom->fi_name);
 		return(0);
 	}
 
@@ -842,12 +838,7 @@ static int badrep(HANDLE *hfrom, FILEINFO *ffrom, HANDLE **phto, char **pnto, FI
 	char *f = ffrom->fi_name;
 
 	*pflags = 0;
-	if (
-		(ffrom->fi_stflags & FI_ISDIR) &&
-		!(op & (DIRMOVE | SYMLINK))
-	)
-		printf("%s -> %s : source file is a directory.\n", pathbuf, fullrep);
-	else if ((ffrom->fi_stflags & FI_LINKERR) && !(op & (MOVE | SYMLINK)))
+	if ((ffrom->fi_stflags & FI_LINKERR) && !(op & (MOVE | SYMLINK)))
 		printf("%s -> %s : source file is a badly aimed symbolic link.\n",
 			pathbuf, fullrep);
 	else if ((op & (COPY | APPEND)) && access(pathbuf, R_OK))

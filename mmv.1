@@ -136,7 +136,6 @@ The task option choices are:
 \-m :
 move source file to target name.
 Both must be on the same device.
-Will not move directories.
 .if '\nO'0' \{\
 If the source file is a symbolic link,
 moves the link without checking if the link's target from the new
@@ -156,9 +155,6 @@ of the target file to that of the source file.
 rename source file or directory to target name.
 The target name must not include a path:
 the file remains in the same directory in all cases.
-This option is the only way of renaming directories under
-.IR mmv .
-.if '\nO'2' It is only available under DOS version 3.0 or higher.
 .TP
 \-c :
 copy source file to target name.
@@ -351,13 +347,9 @@ However, the '~' is not treated as a wildcard,
 in the sense that it is not assigned a wildcard index (see below).
 \}
 .PP
-Since matching a directory under a task option other than \-r or \-s
-would result in an error,
-tasks other than \-r and \-s
-match directories only against completely explicit
+The directories "." and ".." are only matched against completely explicit
 .I from
 patterns (i.e. not containing wildcards).
-Under \-r and \-s, this applies only to "." and "..".
 .PP
 .ie '\nO'2' \{\
 Hidden and system files are also only matched
