@@ -416,15 +416,6 @@ endargs:
 			op = DFLTOP;
 	}
 
-	if (
-		op & DIRMOVE &&
-		0
-	) {
-		fprintf(stderr,
-			"Unable to do directory renames. Option -r refused.\n");
-		quit();
-	}
-
 	if (euid != uid && !(op & DIRMOVE)) {
 		setuid(uid);
 		setgid(getgid());
