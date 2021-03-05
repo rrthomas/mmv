@@ -253,7 +253,6 @@ static int getreply(char *m, int failact);
 static void *myalloc(unsigned k);
 static void *challoc(int k, int which);
 static void chgive(void *p, unsigned k);
-static int mygetc(void);
 static char *mygets(char *s, int l);
 static int getstat(char *full, FILEINFO *f);
 static int dwritable(HANDLE *h);
@@ -488,7 +487,7 @@ static int getpat(void)
 		}
 
 nextline:
-		while ((c = mygetc()) != '\n' && c != EOF)
+		while ((c = getchar()) != '\n' && c != EOF)
 			;
 		if (c == EOF)
 			return(0);
@@ -505,7 +504,7 @@ static int getword(char *buf)
 	p = buf;
 	prevc = ' ';
 	n = 0;
-	while ((c = mygetc()) != EOF && (prevc == ESC || !isspace(c))) {
+	while ((c = getchar()) != EOF && (prevc == ESC || !isspace(c))) {
 		if (n == -1)
 			continue;
 		if (n == MAXPATLEN - 1) {
@@ -519,7 +518,7 @@ static int getword(char *buf)
 	}
 	*p = '\0';
 	while (c != EOF && isspace(c) && c != '\n')
-		c = mygetc();
+		c = getchar();
 	if (c != EOF)
 		ungetc(c, stdin);
 	return(n);
@@ -1992,15 +1991,6 @@ static void chgive(void *p, unsigned k)
 	((CHUNK *)p)->ch_len = k - sizeof(CHUNK *);
 	((CHUNK *)p)->ch_next = freechunks;
 	freechunks = (CHUNK *)p;
-}
-
-static int mygetc(void)
-{
-	static int lastc = 0;
-
-	if (lastc == EOF)
-		return(EOF);
-	return(lastc = getchar());
 }
 
 static char *mygets(char *s, int l)
