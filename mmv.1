@@ -21,20 +21,13 @@ mmv \- move/copy/append multiple files by wildcard patterns
 \}
 .SH SYNOPSIS
 .B mmv
-.if '\nO'2' [\fB\-m\fP|\fBx\fP|\fBr\fP|\fBc\fP|\fBo\fP|\fBa\fP|\fBz\fP]
-.if '\nO'0' [\fB\-m\fP|\fBx\fP|\fBr\fP|\fBc\fP|\fBo\fP|\fBa\fP|\fBl\fP|\fBs\fP]
-.if '\nO'1' [\fB\-m\fP|\fBx\fP|\fBr\fP|\fBc\fP|\fBo\fP|\fBa\fP|\fBl\fP]
+[\fB\-m\fP|\fBx\fP|\fBr\fP|\fBc\fP|\fBo\fP|\fBa\fP|\fBl\fP|\fBs\fP]
 [\fB\-h\fP]
 [\fB\-d\fP|\fBp\fP]
 [\fB\-g\fP|\fBt\fP]
 [\fB\-v\fP|\fBn\fP]
 [\fB\-\-\fP]
 [\fBfrom to\fP]
-.if '\nO'2' \{\
-.br
-.B mmvpatch
-[\fBexecutable\fP]
-\}
 .SH "EXAMPLES"
 Rename all
 .I *.jpeg
@@ -137,11 +130,9 @@ The task option choices are:
 move source file to target name.
 Both must be on the same device.
 Will not move directories.
-.if '\nO'0' \{\
 If the source file is a symbolic link,
 moves the link without checking if the link's target from the new
 directory is different than the old.
-\}
 .TP
 \-x :
 same as \-m, except cross-device moves are done
@@ -198,21 +189,12 @@ same target name, e.g. "mmv \-a
 .el \\*.c
 big" will append all ".c" files to "big".
 Chains and cycles are also allowed, so "mmv \-a f f" will double up "f".
-.ie '\nO'2' \{\
-.TP
-\-z :
-same as \-a, but if the target file exists, and its last character is a ^Z,
-and the source file is not empty,
-this ^Z is truncated before doing the append.
-\}
-.el \{\
 .TP
 \-l :
 link target name to source file.
 Both must be on the same device,
 and the source must not be a directory.
 Chains and cycles are not allowed.
-.if '\nO'0' \{\
 .TP
 \-s :
 same as \-l, but use symbolic links instead of hard links.
@@ -222,8 +204,6 @@ or the target must reside in either the current or the source directory.
 If none of these conditions are met, the link is refused.
 However, source and target can reside on different devices,
 and the source can be a directory.
-\}
-\}
 .PP
 Only one of these option may be given,
 and it applies to all matching files.
@@ -286,9 +266,6 @@ The
 .I from
 pattern is a filename
 with embedded wildcards: '*', '?', '['...']',
-.if '\nO'2' \{\
-\'!',
-\}
 and ';'.
 The first three have their usual
 .IR sh (1)
@@ -303,25 +280,6 @@ The set of matching characters can be negated by inserting
 a '^' after the '['.
 Thus, "[^b\-e2\-5_]"
 will match any character but 'b' through 'e', '2' through '5', and '_'.
-.if '\nO'2' \{\
-.PP
-Unlike DOS wildcards,
-all mmv wildcards (except for cases listed below)
-can occur anywhere in the pattern,
-whether preceding or following explicit characters or other wildcards.
-For example, the pattern "*z\\foo.bar" will search
-for files named "foo.bar" in all subdirectories whose names end in 'z'.
-However, no wildcards can occur in the drive letter.
-.PP
-The character '.' is not matched by any of '*', '?', or '['...']'.
-Thus, the pattern "*" will only match files with a null extension.
-To save yourself some typing, use the '!' wildcard instead,
-which matches the same as "*.*",
-except it is assigned only one wildcard index (see below).
-Thus, both "f!" and "f*.*"
-will match all of "f", "f.ext", "foo", and "foo.ext",
-while "f*" will match only the first and the third.
-\}
 .PP
 Note that paths are allowed in the patterns,
 and wildcards may be intermingled with slashes arbitrarily.
@@ -332,7 +290,6 @@ and can only occur either at the beginning of the pattern
 or following a '\*(SL'.
 Thus ";*.c" will match all ".c" files in or below the current directory,
 while "\*(SL;*.c" will match them anywhere on the file system.
-.if !'\nO'2' \{\
 .PP
 In addition, if the
 .I from
@@ -346,7 +303,6 @@ begins with "~/", the '~' is replaced with the home directory name.
 is not implemented.)
 However, the '~' is not treated as a wildcard,
 in the sense that it is not assigned a wildcard index (see below).
-\}
 .PP
 Since matching a directory under a task option other than \-r or \-s
 would result in an error,
@@ -356,19 +312,10 @@ match directories only against completely explicit
 patterns (i.e. not containing wildcards).
 Under \-r and \-s, this applies only to "." and "..".
 .PP
-.ie '\nO'2' \{\
-Hidden and system files are also only matched
-against completely explicit
-.I from
-patterns.
-\}
-.el \{\
 Files beginning with '.' are only matched against
 .I from
 patterns that begin with an explicit '.'.
-\}
 However, if \-h is specified, they are matched normally.
-.if !'\nO'2' \{\
 .PP
 Warning: since the shell normally expands wildcards
 before passing the command-line arguments to
@@ -378,7 +325,6 @@ it is usually necessary to enclose the command-line
 and
 .I to
 patterns in quotes.
-\}
 
 .ce
 The \fITo\fP Pattern
@@ -415,7 +361,6 @@ pattern,
 since the string matched by any ';' is always either empty
 or ends in a '\*(SL'.
 In this case, it matches "foo1\*(SLfoo2\*(SL".
-.if !'\nO'2' \{\
 .PP
 To convert the string matched by a wildcard
 to either lowercase or uppercase before embedding it in the target name,
@@ -439,7 +384,6 @@ expands the '~' in the exact same manner as
 (or, in the case of
 .IR sh (1),
 does not expand it at all).
-\}
 .PP
 For all task options other than \-r, if the target name is a directory,
 the real target name is formed by appending
@@ -629,57 +573,6 @@ on the standard input
 to have it complete the task.
 (The user is queried for a file name to dump this report
 if the standard output has not been redirected.)
-.if '\nO'2' \{\
-
-.ce
-\fIMmvpatch\fP
-.PP
-You can customize a copy of
-.I mmv
-via the
-.I mmvpatch
-utility.
-If you wish to change the default task option,
-run
-.I mmvpatch
-on a copy of
-.I mmv
-named as follows:
-
-	\-x, \-m, \-r		mmv.exe
-.br
-	\-c, \-o			mcp.exe
-.br
-	\-a, \-z			mad.exe
-.PP
-.I Mmvpatch
-also determines the best way to uniquely identify directories.
-As distributed,
-.I mmv
-is set to use a method that is guaranteed to work the same way
-for all versions of DOS,
-but is both slow
-and unable to correctly handle drives
-affected by the
-.I join
-and
-.I subst
-DOS commands.
-Alternatively,
-there is a method that is fast and correct,
-but uses an undocumented DOS feature
-that may not work properly under all versions of DOS.
-(However, 2.0 and 3.3 are known to work.)
-.I Mmv
-does
-.I not
-determine the best method to use on your system
-at run-time since this is too slow.
-The choice is left to
-.I mmvpatch,
-which determines if the fast method works,
-but also allows you to return to the slow method.
-\}
 .SH "EXIT STATUS"
 .I Mmv
 exits with status 1 if it aborts before doing anything,
@@ -694,14 +587,12 @@ Vladimir Lanin
 .br
 lanin@csd2.nyu.edu
 .SH "BUGS"
-.if !'\nO'2' \{\
 If the search pattern is not quoted,
 the shell expands the wildcards.
 .I Mmv
 then (usually) gives some error message,
 but can not determine that the lack of quotes is the cause.
 .PP
-\}\
 To avoid difficulties in semantics and error checking,
 .I mmv
 refuses to move or create directories.
