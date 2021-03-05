@@ -196,70 +196,66 @@ typedef struct {
 } SLICER;
 
 
-static void init(/* */);
-static void procargs(/* int argc, char **argv,
-	char **pfrompat, char **ptopat */);
-static void domatch(/* char *cfrom, char *cto */);
-static int getpat(/* */);
-static int getword(/* char *buf */);
-static void matchpat(/*  */);
-static int parsepat(/*  */);
-static int dostage(/* char *lastend, char *pathend,
-	char **start1, int *len1, int stage, int anylev */);
-static int trymatch(/* FILEINFO *ffrom, char *pat */);
-static int keepmatch(/* FILEINFO *ffrom, char *pathend,
-	int *pk, int needslash, int dirs, int fils */);
-static int badrep(/* HANDLE *hfrom, FILEINFO *ffrom,
-	HANDLE **phto, char **pnto, FILEINFO **pfdel, int *pflags */);
-static int checkto(/* HANDLE *hfrom, char *f,
-	HANDLE **phto, char **pnto, FILEINFO **pfdel */);
-static char *getpath(/* char *tpath */);
-static int badname(/* char *s */);
-static FILEINFO *fsearch(/* char *s, DIRINFO *d */);
-static int ffirst(/* char *s, int n, DIRINFO *d */);
-static HANDLE *checkdir(/* char *p, char *pathend, int which */);
-static void takedir(/*
-	char *p, DIRINFO *di, int sticky
-or
-	struct ffblk *pff, DIRINFO *di
-*/);
-static int fcmp(/* FILEINFO **pf1, FILEINFO **pf2 */);
-static HANDLE *hadd(/* char *n */);
-static int hsearch(/* char *n, int which, HANDLE **ph */);
-static DIRINFO *dadd(/* DEVID v, DIRID d */);
-static DIRINFO *dsearch(/* DEVID v, DIRID d */);
-static int match(/* char *pat, char *s, char **start1, int *len1 */);
-static void makerep(/*  */);
-static void checkcollisions(/*  */);
-static int rdcmp(/* REPDICT *rd1, REPDICT *rd2 */);
-static void findorder(/*  */);
-static void scandeletes(/* int (*pkilldel)(REP *p) */);
-static int baddel(/* REP *p */);
-static int skipdel(/* REP *p */);
-static void nochains(/*  */);
-static void printchain(/* REP *p */);
-static void goonordie(/*  */);
-static void doreps(/*  */);
-static long appendalias(/* REP *first, REP *p, int *pprintaliased */);
-static int movealias(/* REP *first, REP *p, int *pprintaliased */);
-static int snap(/* REP *first, REP *p */);
-static void showdone(/* REP *fin */);
-static void breakout(/*  */);
+static void init(void);
+static void procargs(int argc, char **argv,
+	char **pfrompat, char **ptopat);
+static void domatch(char *cfrom, char *cto);
+static int getpat(void);
+static int getword(char *buf);
+static void matchpat(void);
+static int parsepat(void);
+static int dostage(char *lastend, char *pathend,
+	char **start1, int *len1, int stage, int anylev);
+static int trymatch(FILEINFO *ffrom, char *pat);
+static int keepmatch(FILEINFO *ffrom, char *pathend,
+	int *pk, int needslash, int dirs, int fils);
+static int badrep(HANDLE *hfrom, FILEINFO *ffrom,
+	HANDLE **phto, char **pnto, FILEINFO **pfdel, int *pflags);
+static int checkto(HANDLE *hfrom, char *f,
+	HANDLE **phto, char **pnto, FILEINFO **pfdel);
+static char *getpath(char *tpath);
+static int badname(char *s);
+static FILEINFO *fsearch(char *s, DIRINFO *d);
+static int ffirst(char *s, int n, DIRINFO *d);
+static HANDLE *checkdir(char *p, char *pathend, int which);
+static void takedir(char *p, DIRINFO *di, int sticky);
+static int fcmp(const void *pf1, const void *pf2);
+static HANDLE *hadd(char *n);
+static int hsearch(char *n, int which, HANDLE **ph);
+static DIRINFO *dadd(DEVID v, DIRID d);
+static DIRINFO *dsearch(DEVID v, DIRID d);
+static int match(char *pat, char *s, char **start1, int *len1);
+static void makerep(void);
+static void checkcollisions(void);
+static int rdcmp(const void *rd1, const void *rd2);
+static void findorder(void);
+static void scandeletes(int (*pkilldel)(REP *p));
+static int baddel(REP *p);
+static int skipdel(REP *p);
+static void nochains(void);
+static void printchain(REP *p);
+static void goonordie(void);
+static void doreps(void);
+static long appendalias(REP *first, REP *p, int *pprintaliased);
+static int movealias(REP *first, REP *p, int *pprintaliased);
+static int snap(REP *first, REP *p);
+static void showdone(REP *fin);
+static void breakout(int signum);
 static void breakrep(int);
-static void breakstat(/* */);
-static void quit(/*  */);
-static int copymove(/* REP *p */);
-static int copy(/* FILENFO *f, long len */);
-static int myunlink(/* char *n, FILEINFO *f */);
-static int getreply(/* char *m, int failact */);
-static void *myalloc(/* unsigned k */);
-static void *challoc(/* int k, int which */);
-static void chgive(/* void *p, unsigned k */);
-static int mygetc(/* */);
-static char *mygets(/* char *s, int l */);
-static int getstat(/* char *full, FILEINFO *f */);
-static int dwritable(/* HANDLE *h */);
-static int fwritable(/* char *hname, FILEINFO *f */);
+static void breakstat(int signum);
+static void quit(void);
+static int copymove(REP *p);
+static int copy(FILEINFO *f, long len);
+static int myunlink(char *n, FILEINFO *f);
+static int getreply(char *m, int failact);
+static void *myalloc(unsigned k);
+static void *challoc(int k, int which);
+static void chgive(void *p, unsigned k);
+static int mygetc(void);
+static char *mygets(char *s, int l);
+static int getstat(char *full, FILEINFO *f);
+static int dwritable(HANDLE *h);
+static int fwritable(char *hname, FILEINFO *f);
 
 static int op, badstyle, delstyle, verbose, noex, matchall;
 static int patflags;
@@ -308,9 +304,7 @@ static DIRID cwdd = -1;
 static DEVID cwdv = -1;
 
 
-int main(argc, argv)
-	int argc;
-	char *(argv[]);
+int main(int argc, char *argv[])
 {
 	char *frompat, *topat;
 
@@ -1251,9 +1245,9 @@ static void takedir(p, di, sticky)
 
 
 static int fcmp(pf1, pf2)
-	FILEINFO **pf1, **pf2;
+	const void *pf1, *pf2;
 {
-	return(strcmp((*pf1)->fi_name, (*pf2)->fi_name));
+	return(strcmp((*(FILEINFO **)pf1)->fi_name, (*(FILEINFO **)pf2)->fi_name));
 }
 
 static HANDLE *hadd(n)
@@ -1557,11 +1551,13 @@ static void checkcollisions()
 	chgive(rd, oldnreps * sizeof(REPDICT));
 }
 
-static int rdcmp(rd1, rd2)
-	REPDICT *rd1, *rd2;
+static int rdcmp(p1, p2)
+	const void *p1, *p2;
 {
 	int ret;
 
+	REPDICT *rd1 = (REPDICT *)p1;
+	REPDICT *rd2 = (REPDICT *)p2;
 	if (
 		(ret = rd1->rd_dto - rd2->rd_dto) == 0 &&
 		(ret = strcmp(rd1->rd_nto, rd2->rd_nto)) == 0
@@ -1896,7 +1892,7 @@ static void showdone(fin)
 		}
 }
 
-static void breakout()
+static void breakout(int signum)
 {
 	fflush(stdout);
 	fprintf(stderr, "Aborting, nothing done.\n");
@@ -1909,7 +1905,7 @@ static void breakrep(int signum)
 	return;
 }
 
-static void breakstat()
+static void breakstat(int signum)
 {
 	exit(1);
 }
