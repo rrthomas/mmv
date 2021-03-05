@@ -1,13 +1,15 @@
 /*
-	mmv 1.01b
+	mmv 1.02
+
+	Copyright (c) 2021 Reuben Thomas.
 	Copyright (c) 1990 Vladimir Lanin.
-	This program may be freely used and copied on a non-commercial basis.
 
-	Author may be reached at:
+	This program is distributed under the GNU GPL version 3, or, at your
+	option, any later version..
 
-	lanin@csd2.nyu.edu
+	Maintainer: Reuben Thomas <rrt@sc3d.org>
 
-	Vladimir Lanin
+	The original author of mmv was Vladimir Lanin <lanin@csd2.nyu.edu>, of
 	330 Wadsworth Ave, Apt 6F,
 	New York, NY 10040
 
