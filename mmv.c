@@ -118,7 +118,6 @@ static char LINKNAME[] = "mln";
 #define MAXWILD 20
 #define MAXPATLEN PATH_MAX
 #define INITROOM 10
-#define BUFSIZE 4096
 
 #define FI_STTAKEN 0x01
 #define FI_LINKERR 0x02
@@ -1829,7 +1828,7 @@ static int copymove(REP *p)
 
 static int copy(FILEINFO *ff, off_t len)
 {
-	char buf[BUFSIZE];
+	char buf[BUFSIZ];
 	int f, t, mode;
 	mode_t perm;
 	ssize_t k;
@@ -1857,7 +1856,7 @@ static int copy(FILEINFO *ff, off_t len)
 	if ((op & APPEND) && len != (off_t)-1) {
 		while (
 			len != 0 &&
-			(k = read(f, buf, (len > BUFSIZE) ? BUFSIZE : (size_t)len)) > 0 &&
+			(k = read(f, buf, (len > BUFSIZ) ? BUFSIZ : (size_t)len)) > 0 &&
 			write(t, buf, (size_t)k) == k
 		)
 			len -= k;
@@ -1865,7 +1864,7 @@ static int copy(FILEINFO *ff, off_t len)
 			k = 0;
 	}
 	else
-		while ((k = read(f, buf, BUFSIZE)) > 0 && write(t, buf, (size_t)k) == k)
+		while ((k = read(f, buf, BUFSIZ)) > 0 && write(t, buf, (size_t)k) == k)
 			;
 	if (!(op & (APPEND | OVERWRITE)))
 		if (
