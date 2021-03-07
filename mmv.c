@@ -37,7 +37,6 @@
 #include <string.h>
 #include <signal.h>
 #include <fcntl.h>
-#include <libgen.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -45,6 +44,8 @@
 #include <utime.h>
 #include <dirent.h>
 
+#include "progname.h"
+#include "pathmax.h"
 #include "xalloc.h"
 #include "ignore-value.h"
 #include "unused-parameter.h"
@@ -320,7 +321,7 @@ static void init(void)
 
 static void procargs(int argc, char **argv, char **pfrompat, char **ptopat)
 {
-	char *cmdname = basename(argv[0]);
+	set_program_name(argv[0]);
 
 	op = DFLT;
 	verbose = noex = matchall = 0;
@@ -365,20 +366,20 @@ static void procargs(int argc, char **argv, char **pfrompat, char **ptopat)
 			else if (c == 's' && op == DFLT)
 				op = SYMLINK;
 			else {
-				fprintf(stderr, USAGE, cmdname, OTHEROPT);
+				fprintf(stderr, USAGE, program_name, OTHEROPT);
 				exit(1);
 			}
 		}
 
 endargs:
 	if (op == DFLT) {
-		if (strcmp(cmdname, MOVENAME) == 0)
+		if (strcmp(program_name, MOVENAME) == 0)
 			op = XMOVE;
-		else if (strcmp(cmdname, COPYNAME) == 0)
+		else if (strcmp(program_name, COPYNAME) == 0)
 			op = NORMCOPY;
-		else if (strcmp(cmdname, APPENDNAME) == 0)
+		else if (strcmp(program_name, APPENDNAME) == 0)
 			op = NORMAPPEND;
-		else if (strcmp(cmdname, LINKNAME) == 0)
+		else if (strcmp(program_name, LINKNAME) == 0)
 			op = HARDLINK;
 		else
 			op = DFLTOP;
@@ -400,7 +401,7 @@ endargs:
 		*ptopat = *(argv++);
 	}
 	else {
-		fprintf(stderr, USAGE, cmdname, OTHEROPT);
+		fprintf(stderr, USAGE, program_name, OTHEROPT);
 		exit(1);
 	}
 }
