@@ -410,8 +410,7 @@ and
 proceeds to check the rest of the specified actions.
 Once all errors are detected,
 .I mmv
-queries the user whether he wishes
-to continue by avoiding the erroneous actions or to abort altogether.
+asks the user whether to continue by avoiding the erroneous actions or to abort altogether.
 This and all other queries may be avoided by specifying either the
 \-g (go) or \-t (terminate) option.
 The former will resolve all difficulties by avoiding the erroneous actions;
@@ -504,8 +503,8 @@ reports which actions have already been done and
 which are still to be performed
 after such a failure occurs.
 It then aborts, not attempting to do anything else.
-Once the user has cleared up the problem,
-he can feed this report back to
+The user can fix the problem,
+then feed this report back to
 .I mmv
 on the standard input
 to have it complete the task.
