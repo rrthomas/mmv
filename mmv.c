@@ -1,5 +1,5 @@
 /*
-	mmv 1.02
+	mmv
 
 	Copyright (c) 2021 Reuben Thomas.
 	Copyright (c) 1990 Vladimir Lanin.
@@ -27,6 +27,8 @@
 	Phil Dench, John Nelson:
 			bug reports.
 */
+
+#include "config.h"
 
 static char USAGE[] =
 
