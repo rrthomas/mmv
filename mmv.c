@@ -30,6 +30,12 @@
 
 #include "config.h"
 
+/* NAME_MAX is not guaranteed to exist and its value should really be
+ * obtained with pathconf(), but that doesn't exist on mingw */
+#ifdef _WIN32
+#define _POSIX_ /* For NAME_MAX in limits.h on mingw */
+#endif
+
 #include <stdbool.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -43,11 +49,14 @@
 #include <sys/file.h>
 #include <utime.h>
 #include <dirent.h>
+#include <limits.h>
 
 #include "progname.h"
 #include "pathmax.h"
 #include "xalloc.h"
+#ifndef _WIN32
 #include "ignore-value.h"
+#endif
 #include "unused-parameter.h"
 
 
@@ -309,8 +318,10 @@ static void init(void)
 		cwdv = dstat.st_dev;
 	}
 	oldumask = umask(0);
+#ifndef _WIN32
 	euid = geteuid();
 	uid = getuid();
+#endif
 	signal(SIGINT, breakout);
 
 	dirroom = handleroom = INITROOM;
@@ -385,11 +396,13 @@ endargs:
 			op = DFLTOP;
 	}
 
+#ifndef _WIN32
 	if (euid != uid && !(op & DIRMOVE)) {
 		/* Best effort. */
 		ignore_value(setuid(uid));
 		ignore_value(setgid(getgid()));
 	}
+#endif
 
 	if (badstyle != ASKBAD && delstyle == ASKDEL)
 		delstyle = NODEL;
@@ -944,7 +957,7 @@ static int badname(char *s)
 {
 	return (
 		(*s == '.' && (s[1] == '\0' || strcmp(s, "..") == 0)) ||
-		strlen(s) > MAXNAMLEN
+		strlen(s) > NAME_MAX
 	);
 }
 
@@ -962,6 +975,7 @@ static int getstat(char *ffull, FILEINFO *f)
 	}
 	if ((flags & FI_INSTICKY) && fstat.st_uid != uid && uid != 0)
 		flags |= FI_NODEL;
+#ifdef S_IFLNK
 	if ((fstat.st_mode & S_IFMT) == S_IFLNK) {
 		flags |= FI_ISLNK;
 		if (stat(ffull, &fstat)) {
@@ -969,6 +983,7 @@ static int getstat(char *ffull, FILEINFO *f)
 			return(1);
 		}
 	}
+#endif
 	if ((fstat.st_mode & S_IFMT) == S_IFDIR)
 		flags |= FI_ISDIR;
 	f->fi_stflags = flags;
