@@ -63,18 +63,12 @@ Use -- as the end of options.\n"
 #define OTHEROPT ""
 
 
-typedef struct dirent DIRENTRY;
-
-
 #ifndef O_BINARY
 #define O_BINARY 0
 #endif
 
 #define ESC '\\'
 #define SLASH '/'
-
-typedef ino_t DIRID;
-typedef dev_t DEVID;
 
 static char TTY[] = "/dev/tty";
 
@@ -139,8 +133,8 @@ typedef struct {
 #define DI_CANWRITE 0x02
 
 typedef struct {
-	DEVID di_vid;
-	DIRID di_did;
+	dev_t di_vid;
+	ino_t di_did;
 	size_t di_nfils;
 	FILEINFO **di_fils;
 	char di_flags;
@@ -208,8 +202,8 @@ static void takedir(const char *p, DIRINFO *di, int sticky);
 static int fcmp(const void *pf1, const void *pf2);
 static HANDLE *hadd(char *n);
 static int hsearch(char *n, int which, HANDLE **ph);
-static DIRINFO *dadd(DEVID v, DIRID d);
-static DIRINFO *dsearch(DEVID v, DIRID d);
+static DIRINFO *dadd(dev_t v, ino_t d);
+static DIRINFO *dsearch(dev_t v, ino_t d);
 static int match(char *pat, char *s, char **start1, size_t *len1);
 static void makerep(void);
 static void checkcollisions(void);
@@ -282,8 +276,8 @@ static const char *home;
 static size_t homelen;
 static uid_t uid, euid;
 static mode_t oldumask;
-static DIRID cwdd = -1UL;
-static DEVID cwdv = -1UL;
+static ino_t cwdd = -1UL;
+static dev_t cwdv = -1UL;
 
 
 int main(int argc, char *argv[])
@@ -1081,8 +1075,8 @@ static size_t ffirst(char *s, size_t n, DIRINFO *d)
 static HANDLE *checkdir(char *p, char *pathend, int which)
 {
 	struct stat dstat;
-	DIRID d;
-	DEVID v;
+	ino_t d;
+	dev_t v;
 	DIRINFO *di = NULL;
 	const char *myp;
 	char *lastslash = NULL;
@@ -1133,7 +1127,7 @@ static HANDLE *checkdir(char *p, char *pathend, int which)
 
 static void takedir(const char *p, DIRINFO *di, int sticky)
 {
-	DIRENTRY *dp;
+	struct dirent *dp;
 	FILEINFO *f, **fils;
 	DIR *dirp;
 
@@ -1211,7 +1205,7 @@ static int hsearch(char *n, int which, HANDLE **pret)
 	return(0);
 }
 
-static DIRINFO *dadd(DEVID v, DIRID d)
+static DIRINFO *dadd(dev_t v, ino_t d)
 {
 	DIRINFO *di;
 	DIRINFO **newdirs;
@@ -1232,7 +1226,7 @@ static DIRINFO *dadd(DEVID v, DIRID d)
 	return(di);
 }
 
-static DIRINFO *dsearch(DEVID v, DIRID d)
+static DIRINFO *dsearch(dev_t v, ino_t d)
 {
 	for (unsigned i = 0; i < ndirs; i++)
 		if (v == dirs[i]->di_vid && d == dirs[i]->di_did)
