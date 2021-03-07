@@ -30,6 +30,7 @@
 
 #include "config.h"
 
+#include <stdbool.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -69,9 +70,6 @@ Use -- as the end of options.\n"
 
 #define ESC '\\'
 #define SLASH '/'
-
-static char TTY[] = "/dev/tty";
-
 
 #define STRLEN(s) (sizeof(s) - 1)
 
@@ -227,7 +225,7 @@ static void quit(void);
 static int copymove(REP *p);
 static int copy(FILEINFO *f, long len);
 static int myunlink(char *n);
-static int getreply(const char *m, int failact);
+static bool getreply(void);
 static int getstat(char *full, FILEINFO *f);
 static int dwritable(HANDLE *h);
 static int fwritable(char *hname, FILEINFO *f);
@@ -1599,7 +1597,8 @@ static int skipdel(REP *p)
 		fprintf(stderr, "%s old %s%s",
 			(op & OVERWRITE) ? "overwrite" : "delete",
 			p->r_hto->h_name, p->r_nto);
-	return(!getreply("? ", -1));
+	fprintf(stderr, "? ");
+	return(!getreply());
 }
 
 static void goonordie(void)
@@ -1612,8 +1611,11 @@ static void goonordie(void)
 		}
 		else if (badstyle == SKIPBAD)
 			fprintf(stderr, " Proceeding with the rest.\n");
-		else if (!getreply(" Proceed with the rest? ", -1))
-			exit(1);
+		else {
+			fprintf(stderr, " Proceed with the rest? ");
+			if (!getreply())
+				exit(1);
+		}
 	}
 }
 
@@ -1867,34 +1869,23 @@ static int myunlink(char *n)
 	return(0);
 }
 
-static int getreply(const char *m, int failact)
+static bool getreply(void)
 {
 	static FILE *tty = NULL;
-	int c, r;
+	if (tty == NULL && (tty = fopen("/dev/tty", "r")) == NULL) {
+		fprintf(stderr, "Can not open terminal to get reply.\n");
+		quit();
+	}
 
-	fprintf(stderr, "%s", m);
-	if (tty == NULL && (tty = fopen(TTY, "r")) == NULL) {
-		fprintf(stderr, "Can not open %s to get reply.\n", TTY);
-		if (failact == -1)
-			quit();
-		else
-			return(failact);
+	/* Test against "^[yY]", hardcoded to avoid requiring getline,
+	   regex, and rpmatch.  */
+	int c = getchar();
+	if (c == EOF) {
+		fprintf(stderr, "Can not get reply.\n");
+		quit();
 	}
-	for (;;) {
-		r = fgetc(tty);
-		if (r == EOF) {
-			fprintf(stderr, "Can not get reply.\n");
-			if (failact == -1)
-				quit();
-			else
-				return(failact);
-		}
-		if (r != '\n')
-			while ((c = fgetc(tty)) != '\n' && c != EOF)
-				;
-		r = tolower(r);
-		if (r == 'y' || r == 'n')
-			return(r == 'y');
-		fprintf(stderr, "Yes or No? ");
-	}
+	bool yes = (c == 'y' || c == 'Y');
+	while (c != '\n' && c != EOF)
+		c = getchar();
+	return yes;
 }
