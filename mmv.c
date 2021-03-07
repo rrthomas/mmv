@@ -46,6 +46,7 @@
 #include <dirent.h>
 
 #include "xalloc.h"
+#include "ignore-value.h"
 #include "unused-parameter.h"
 
 
@@ -384,8 +385,9 @@ endargs:
 	}
 
 	if (euid != uid && !(op & DIRMOVE)) {
-		setuid(uid);
-		setgid(getgid());
+		/* Best effort. */
+		ignore_value(setuid(uid));
+		ignore_value(setgid(getgid()));
 	}
 
 	if (badstyle != ASKBAD && delstyle == ASKDEL)
