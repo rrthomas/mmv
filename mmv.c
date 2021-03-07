@@ -56,7 +56,7 @@ Use #[l|u]N in the ``to'' pattern to get the [lowercase|uppercase of the]\n\
 string matched by the N'th ``from'' pattern wildcard.\n\
 \n\
 A ``from'' pattern containing wildcards should be quoted when given\n\
-on the command line. Also you may need to quote ``to'' pattern.\n\
+on the command line. You may also need to quote the ``to'' pattern.\n\
 \n\
 Use -- as the end of options.\n"
 
