@@ -51,12 +51,7 @@ if test "$gl_gcc_warnings" = yes; then
   nw="$nw -Wundef"            # All compiler preprocessors support #if UNDEF
   nw="$nw -Wtraditional"      # All compilers nowadays support ANSI C
   nw="$nw -Wdeclaration-after-statement" # We require C99.
-  nw="$nw -Wtraditional-conversion" # Don't care.
-  nw="$nw -Wpadded"           # Don't care.
-  nw="$nw -Wc++-compat"       # Don't care.
-  nw="$nw -Woverlength-strings" # Don't care.
-  nw="$nw -Wmissing-format-attribute" # Don't care.
-  nw="$nw -Wunreachable-code" # Seems buggy.
+  nw="$nw -Wimplicit-fallthrough=5" # We want to allow "fallthrough" comments.
 
   gl_MANYWARN_ALL_GCC([warnings])
 

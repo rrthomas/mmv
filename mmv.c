@@ -30,8 +30,25 @@
 
 #include "config.h"
 
-static char USAGE[] =
+#include <unistd.h>
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <libgen.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/file.h>
+#include <utime.h>
+#include <dirent.h>
 
+#include "xalloc.h"
+#include "unused-parameter.h"
+
+
+#define USAGE \
 "Usage: \
 %s [-m|x|r|c|o|a|l%s] [-h] [-d|p] [-g|t] [-v|n] [from to]\n\
 \n\
@@ -41,23 +58,11 @@ string matched by the N'th ``from'' pattern wildcard.\n\
 A ``from'' pattern containing wildcards should be quoted when given\n\
 on the command line. Also you may need to quote ``to'' pattern.\n\
 \n\
-Use -- as the end of options.\n";
+Use -- as the end of options.\n"
 
 #define OTHEROPT ""
 
 
-#include <unistd.h>
-#include <stdio.h>
-#include <ctype.h>
-
-#include <libgen.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/file.h>
-#include <utime.h>
-
-#include <dirent.h>
 typedef struct dirent DIRENTRY;
 
 
@@ -71,19 +76,10 @@ typedef struct dirent DIRENTRY;
 typedef ino_t DIRID;
 typedef dev_t DEVID;
 
-#define MAXPATH 1024
-
 static char TTY[] = "/dev/tty";
 
-#include <string.h>
-#include <signal.h>
-#include <fcntl.h>
 
-
-#define mylower(c) (isupper(c) ? (c)-'A'+'a' : (c))
-#define myupper(c) (islower(c) ? (c)-'a'+'A' : (c))
 #define STRLEN(s) (sizeof(s) - 1)
-#define mydup(s) (strcpy((char *)challoc(strlen(s) + 1, 0), (s)))
 
 
 #define DFLT 0x001
@@ -120,9 +116,8 @@ static char LINKNAME[] = "mln";
 #define UPPER 2
 
 #define MAXWILD 20
-#define MAXPATLEN MAXPATH
+#define MAXPATLEN PATH_MAX
 #define INITROOM 10
-#define CHUNKSIZE 2048
 #define BUFSIZE 4096
 
 #define FI_STTAKEN 0x01
@@ -137,18 +132,17 @@ static char LINKNAME[] = "mln";
 typedef struct {
 	char *fi_name;
 	struct rep *fi_rep;
-	short fi_mode;
-	char fi_stflags;
+	mode_t fi_mode;
+	int fi_stflags;
 } FILEINFO;
 
 #define DI_KNOWWRITE 0x01
 #define DI_CANWRITE 0x02
-#define DI_CLEANED 0x04
 
 typedef struct {
 	DEVID di_vid;
 	DIRID di_did;
-	unsigned di_nfils;
+	size_t di_nfils;
 	FILEINFO **di_fils;
 	char di_flags;
 } DIRINFO;
@@ -178,7 +172,7 @@ typedef struct rep {
 	struct rep *r_first;
 	struct rep *r_thendo;
 	struct rep *r_next;
-	char r_flags;
+	int r_flags;
 } REP;
 
 typedef struct {
@@ -188,31 +182,20 @@ typedef struct {
 	unsigned rd_i;
 } REPDICT;
 
-typedef struct chunk {
-	struct chunk *ch_next;
-	unsigned ch_len;
-} CHUNK;
-
-typedef struct {
-	CHUNK *sl_first;
-	char *sl_unused;
-	int sl_len;
-} SLICER;
-
 
 static void init(void);
 static void procargs(int argc, char **argv,
 	char **pfrompat, char **ptopat);
 static void domatch(char *cfrom, char *cto);
 static int getpat(void);
-static int getword(char *buf);
+static size_t getword(char *buf);
 static void matchpat(void);
 static int parsepat(void);
 static int dostage(char *lastend, char *pathend,
-	char **start1, int *len1, int stage, int anylev);
+	char **start1, size_t *len1, int stage, int anylev);
 static int trymatch(FILEINFO *ffrom, char *pat);
 static int keepmatch(FILEINFO *ffrom, char *pathend,
-	int *pk, int needslash, int fils);
+	size_t *pk, int needslash, int fils);
 static int badrep(HANDLE *hfrom, FILEINFO *ffrom,
 	HANDLE **phto, char **pnto, FILEINFO **pfdel, int *pflags);
 static int checkto(HANDLE *hfrom, char *f,
@@ -220,15 +203,15 @@ static int checkto(HANDLE *hfrom, char *f,
 static char *getpath(char *tpath);
 static int badname(char *s);
 static FILEINFO *fsearch(char *s, DIRINFO *d);
-static int ffirst(char *s, int n, DIRINFO *d);
+static size_t ffirst(char *s, size_t n, DIRINFO *d);
 static HANDLE *checkdir(char *p, char *pathend, int which);
-static void takedir(char *p, DIRINFO *di, int sticky);
+static void takedir(const char *p, DIRINFO *di, int sticky);
 static int fcmp(const void *pf1, const void *pf2);
 static HANDLE *hadd(char *n);
 static int hsearch(char *n, int which, HANDLE **ph);
 static DIRINFO *dadd(DEVID v, DIRID d);
 static DIRINFO *dsearch(DEVID v, DIRID d);
-static int match(char *pat, char *s, char **start1, int *len1);
+static int match(char *pat, char *s, char **start1, size_t *len1);
 static void makerep(void);
 static void checkcollisions(void);
 static int rdcmp(const void *rd1, const void *rd2);
@@ -250,11 +233,8 @@ static void breakstat(int signum);
 static void quit(void);
 static int copymove(REP *p);
 static int copy(FILEINFO *f, long len);
-static int myunlink(char *n, FILEINFO *f);
-static int getreply(char *m, int failact);
-static void *myalloc(unsigned k);
-static void *challoc(int k, int which);
-static void chgive(void *p, unsigned k);
+static int myunlink(char *n);
+static int getreply(const char *m, int failact);
 static char *mygets(char *s, int l);
 static int getstat(char *full, FILEINFO *f);
 static int dwritable(HANDLE *h);
@@ -267,12 +247,11 @@ static unsigned ndirs = 0, dirroom;
 static DIRINFO **dirs;
 static unsigned nhandles = 0, handleroom;
 static HANDLE **handles;
-static HANDLE badhandle = {"\200", NULL, 0};
+static char badhandle_name[] = "\200";
+static HANDLE badhandle = {badhandle_name, NULL, 0};
 static HANDLE *(lasthandle[2]) = {&badhandle, &badhandle};
 static unsigned nreps = 0;
 static REP hrep, *lastrep = &hrep;
-static CHUNK *freechunks = NULL;
-static SLICER slicer[2] = {{NULL, NULL, 0}, {NULL, NULL, 0}};
 
 static int badreps = 0, paterr = 0, direrr, failed = 0, gotsig = 0, repbad;
 static FILE *outfile;
@@ -283,28 +262,29 @@ static char EMPTY[] = "(empty)";
 
 static char SLASHSTR[] = {SLASH, '\0'};
 
-static char PATLONG[] = "%.40s... : pattern too long.\n";
+#define PATLONG "%.40s... : pattern too long.\n"
 
 char from[MAXPATLEN], to[MAXPATLEN];
-static int fromlen, tolen;
+static size_t fromlen, tolen;
 static char *(stagel[MAXWILD]), *(firstwild[MAXWILD]), *(stager[MAXWILD]);
 static int nwilds[MAXWILD];
 static int nstages;
-char pathbuf[MAXPATH];
-char fullrep[MAXPATH + 1];
+char pathbuf[PATH_MAX];
+char fullrep[PATH_MAX + 1];
 static char *(start[MAXWILD]);
-static int len[MAXWILD];
+static size_t length[MAXWILD];
 static REP mistake;
 #define MISTAKE (&mistake)
 
 
 #define DFLTOP XMOVE
 
-static char *home;
-static int homelen;
-static int uid, euid, oldumask;
-static DIRID cwdd = -1;
-static DEVID cwdv = -1;
+static const char *home;
+static size_t homelen;
+static uid_t uid, euid;
+static mode_t oldumask;
+static DIRID cwdd = -1UL;
+static DEVID cwdv = -1UL;
 
 
 int main(int argc, char *argv[])
@@ -345,14 +325,15 @@ static void init(void)
 	signal(SIGINT, breakout);
 
 	dirroom = handleroom = INITROOM;
-	dirs = (DIRINFO **)myalloc(dirroom * sizeof(DIRINFO *));
-	handles = (HANDLE **)myalloc(handleroom * sizeof(HANDLE *));
+	dirs = (DIRINFO **)xmalloc(dirroom * sizeof(DIRINFO *));
+	handles = (HANDLE **)xmalloc(handleroom * sizeof(HANDLE *));
 	ndirs = nhandles = 0;
 }
 
 static void procargs(int argc, char **argv, char **pfrompat, char **ptopat)
 {
-	char *p, c;
+	char *p;
+	int c;
 	char *cmdname = basename(argv[0]);
 
 #define CMDNAME cmdname
@@ -363,7 +344,7 @@ static void procargs(int argc, char **argv, char **pfrompat, char **ptopat)
 	badstyle = ASKBAD;
 	for (argc--, argv++; argc > 0 && **argv == '-'; argc--, argv++)
 		for (p = *argv + 1; *p != '\0'; p++) {
-			c = mylower(*p);
+			c = tolower(*p);
 			if (c == '-') {
 				argc--;
 				argv++;
@@ -466,7 +447,7 @@ static int getpat(void)
 
 	patflags = 0;
 	do {
-		if ((fromlen = getword(from)) == 0 || fromlen == -1)
+		if ((fromlen = getword(from)) == 0 || fromlen == SIZE_MAX)
 			goto nextline;
 
 		do {
@@ -474,7 +455,7 @@ static int getpat(void)
 				printf("%s -> ? : missing replacement pattern.\n", from);
 				goto nextline;
 			}
-			if (tolen == -1)
+			if (tolen == SIZE_MAX)
 				goto nextline;
 		} while (
 			tolen == 2 &&
@@ -498,23 +479,24 @@ nextline:
 	return(1);
 }
 
-static int getword(char *buf)
+static size_t getword(char *buf)
 {
-	int c, prevc, n;
+	int c, prevc;
+	size_t n;
 	char *p;
 
 	p = buf;
 	prevc = ' ';
 	n = 0;
 	while ((c = getchar()) != EOF && (prevc == ESC || !isspace(c))) {
-		if (n == -1)
+		if (n == SIZE_MAX)
 			continue;
 		if (n == MAXPATLEN - 1) {
 			*p = '\0';
 			printf(PATLONG, buf);
-			n = -1;
+			n = SIZE_MAX;
 		}
-		*(p++) = c;
+		*(p++) = (char)c;
 		n++;
 		prevc = c;
 	}
@@ -530,7 +512,7 @@ static void matchpat(void)
 {
 	if (parsepat())
 		paterr = 1;
-	else if (dostage(from, pathbuf, start, len, 0, 0)) {
+	else if (dostage(from, pathbuf, start, length, 0, 0)) {
 		printf("%s -> %s : no match.\n", from, to);
 		paterr = 1;
 	}
@@ -540,7 +522,7 @@ static int parsepat(void)
 {
 	char *p, *lastname, c;
 	int totwilds, instage, x;
-	static char TRAILESC[] = "%s -> %s : trailing %c is superfluous.\n";
+#define TRAILESC "%s -> %s : trailing %c is superfluous.\n"
 
 	lastname = from;
 	if (from[0] == '~' && from[1] == SLASH) {
@@ -569,6 +551,7 @@ static int parsepat(void)
 				printf("%s -> %s : badly placed ;.\n", from, to);
 				return(-1);
 			}
+			/* FALLTHROUGH */
 		case '!':
 		case '*':
 		case '?':
@@ -682,19 +665,20 @@ static int parsepat(void)
 	return(0);
 }
 
-static int dostage(char *lastend, char *pathend, char **start1, int *len1, int stage, int anylev)
+static int dostage(char *lastend, char *pathend, char **start1, size_t *len1, int stage, int anylev)
 {
 	DIRINFO *di;
 	HANDLE *h, *hto;
-	int prelen, litlen, nfils, i, k, flags, try;
+	size_t prelen, litlen, i, k, nfils;
+	int flags, try;
 	FILEINFO **pf, *fdel = NULL;
 	char *nto, *firstesc;
 	REP *p;
 	int ret = 1, laststage = (stage + 1 == nstages);
 
 	if (!anylev) {
-		prelen = stagel[stage] - lastend;
-		if (pathend - pathbuf + prelen >= MAXPATH) {
+		prelen = (size_t)(stagel[stage] - lastend);
+		if ((size_t)(pathend - pathbuf) + prelen >= PATH_MAX) {
 			printf("%s -> %s : search path after %s too long.\n",
 				from, to, pathbuf);
 			paterr = 1;
@@ -736,7 +720,7 @@ static int dostage(char *lastend, char *pathend, char **start1, int *len1, int s
 	firstesc = strchr(lastend, ESC);
 	if (firstesc == NULL || firstesc > firstwild[stage])
 		firstesc = firstwild[stage];
-	litlen = firstesc - lastend;
+	litlen = (size_t)(firstesc - lastend);
 	pf = di->di_fils + (i = ffirst(lastend, litlen, di));
 	if (i < nfils)
 	do {
@@ -759,7 +743,7 @@ static int dostage(char *lastend, char *pathend, char **start1, int *len1, int s
 				if (badrep(h, *pf, &hto, &nto, &fdel, &flags))
 					(*pf)->fi_rep = MISTAKE;
 				else {
-					(*pf)->fi_rep = p = (REP *)challoc(sizeof(REP), 1);
+					(*pf)->fi_rep = p = (REP *)xmalloc(sizeof(REP));
 					p->r_flags = flags | patflags;
 					p->r_hfrom = h;
 					p->r_ffrom = *pf;
@@ -785,7 +769,7 @@ skiplev:
 				*((*pf)->fi_name) != '.' &&
 				keepmatch(*pf, pathend, &k, 1, 0)
 			) {
-				*len1 = pathend - *start1 + k;
+				*len1 = (size_t)(pathend - *start1) + k;
 				ret &= dostage(lastend, pathend + k, start1, len1, stage, 1);
 			}
 
@@ -810,10 +794,10 @@ static int trymatch(FILEINFO *ffrom, char *pat)
 	return(-1);
 }
 
-static int keepmatch(FILEINFO *ffrom, char *pathend, int *pk, int needslash, int fils)
+static int keepmatch(FILEINFO *ffrom, char *pathend, size_t *pk, int needslash, int fils)
 {
 	*pk = strlen(ffrom->fi_name);
-	if (pathend - pathbuf + *pk + needslash >= MAXPATH) {
+	if ((size_t)(pathend - pathbuf) + *pk + (size_t)needslash >= PATH_MAX) {
 		*pathend = '\0';
 		printf("%s -> %s : search path %s%s too long.\n",
 			from, to, pathbuf, ffrom->fi_name);
@@ -894,10 +878,10 @@ static int badrep(HANDLE *hfrom, FILEINFO *ffrom, HANDLE **phto, char **pnto, FI
 
 static int checkto(HANDLE *hfrom, char *f, HANDLE **phto, char **pnto, FILEINFO **pfdel)
 {
-	char tpath[MAXPATH + 1];
+	char tpath[PATH_MAX + 1];
 	char *pathend;
 	FILEINFO *fdel = NULL;
-	int hlen, tlen;
+	size_t hlen, tlen;
 
 	if (op & DIRMOVE) {
 		*phto = hfrom;
@@ -910,11 +894,11 @@ static int checkto(HANDLE *hfrom, char *f, HANDLE **phto, char **pnto, FILEINFO 
 			getstat(fullrep, fdel);
 		}
 		else
-			*pnto = mydup(pathend);
+			*pnto = xstrdup(pathend);
 	}
 	else {
 		pathend = getpath(tpath);
-		hlen = pathend - fullrep;
+		hlen = (size_t)(pathend - fullrep);
 		*phto = checkdir(tpath, tpath + hlen, 1);
 		if (
 			*phto != NULL &&
@@ -933,7 +917,7 @@ static int checkto(HANDLE *hfrom, char *f, HANDLE **phto, char **pnto, FILEINFO 
 
 		if (*pathend == '\0') {
 			*pnto = f;
-			if (pathend - fullrep + strlen(f) >= MAXPATH) {
+			if ((size_t)(pathend - fullrep) + strlen(f) >= PATH_MAX) {
 				strcpy(fullrep, TOOLONG);
 				return(-1);
 			}
@@ -947,7 +931,7 @@ static int checkto(HANDLE *hfrom, char *f, HANDLE **phto, char **pnto, FILEINFO 
 		else if (fdel != NULL)
 			*pnto = fdel->fi_name;
 		else
-			*pnto = mydup(pathend);
+			*pnto = xstrdup(pathend);
 	}
 	return(0);
 }
@@ -1008,7 +992,8 @@ static int getstat(char *ffull, FILEINFO *f)
 
 static int dwritable(HANDLE *h)
 {
-	char *p = h->h_name, *myp, *lastslash = NULL, *pathend;
+	char *p = h->h_name, *lastslash = NULL, *pathend;
+	const char *myp;
 	char *pw = &(h->h_di->di_flags), r;
 
 	if (uid == 0)
@@ -1052,10 +1037,10 @@ static int fwritable(char *hname, FILEINFO *f)
 static FILEINFO *fsearch(char *s, DIRINFO *d)
 {
 	FILEINFO **fils = d->di_fils;
-	int nfils = d->di_nfils;
-	int first, k, last, res;
+	size_t nfils = d->di_nfils, first, last, k;
+	int res;
 
-	for(first = 0, last = nfils - 1;;) {
+	for (first = 0, last = nfils - 1;;) {
 		if (last < first)
 			return(NULL);
 		k = (first + last) >> 1;
@@ -1068,11 +1053,12 @@ static FILEINFO *fsearch(char *s, DIRINFO *d)
 	}
 }
 
-static int ffirst(char *s, int n, DIRINFO *d)
+static size_t ffirst(char *s, size_t n, DIRINFO *d)
 {
-	int first, k, last, res;
+	size_t first, k, last;
+	int res;
 	FILEINFO **fils = d->di_fils;
-	int nfils = d->di_nfils;
+	size_t nfils = d->di_nfils;
 
 	if (nfils == 0 || n == 0)
 		return(0);
@@ -1099,7 +1085,8 @@ static HANDLE *checkdir(char *p, char *pathend, int which)
 	DIRID d;
 	DEVID v;
 	DIRINFO *di = NULL;
-	char *myp, *lastslash = NULL;
+	const char *myp;
+	char *lastslash = NULL;
 	int sticky;
 	HANDLE *h;
 
@@ -1145,9 +1132,8 @@ static HANDLE *checkdir(char *p, char *pathend, int which)
 	return(h);
 }
 
-static void takedir(char *p, DIRINFO *di, int sticky)
+static void takedir(const char *p, DIRINFO *di, int sticky)
 {
-	int cnt, room;
 	DIRENTRY *dp;
 	FILEINFO *f, **fils;
 	DIR *dirp;
@@ -1156,20 +1142,20 @@ static void takedir(char *p, DIRINFO *di, int sticky)
 		fprintf(stderr, "Strange, can't scan %s.\n", p);
 		quit();
 	}
-	room = INITROOM;
-	di->di_fils = fils = (FILEINFO **)myalloc(room * sizeof(FILEINFO *));
-	cnt = 0;
+	size_t room = INITROOM;
+	di->di_fils = fils = (FILEINFO **)xmalloc(room * sizeof(FILEINFO *));
+	size_t cnt = 0;
 	while ((dp = readdir(dirp)) != NULL) {
 		if (cnt == room) {
 			room *= 2;
-			fils = (FILEINFO **)myalloc(room * sizeof(FILEINFO *));
+			fils = (FILEINFO **)xmalloc(room * sizeof(FILEINFO *));
 			memcpy(fils, di->di_fils, cnt * sizeof(FILEINFO *));
-			chgive(di->di_fils, cnt * sizeof(FILEINFO *));
+			free(di->di_fils);
 			di->di_fils = fils;
 			fils = di->di_fils + cnt;
 		}
-		*fils = f = (FILEINFO *)challoc(sizeof(FILEINFO), 1);
-		f->fi_name = mydup(dp->d_name);
+		*fils = f = (FILEINFO *)xmalloc(sizeof(FILEINFO));
+		f->fi_name = xstrdup(dp->d_name);
 		f->fi_stflags = sticky;
 		f->fi_rep = NULL;
 		cnt++;
@@ -1194,13 +1180,13 @@ static HANDLE *hadd(char *n)
 
 	if (nhandles == handleroom) {
 		handleroom *= 2;
-		newhandles = (HANDLE **)myalloc(handleroom * sizeof(HANDLE *));
+		newhandles = (HANDLE **)xmalloc(handleroom * sizeof(HANDLE *));
 		memcpy(newhandles, handles, nhandles * sizeof(HANDLE *));
-		chgive(handles, nhandles * sizeof(HANDLE *));
+		free(handles);
 		handles = newhandles;
 	}
-	handles[nhandles++] = h = (HANDLE *)challoc(sizeof(HANDLE), 1);
-	h->h_name = (char *)challoc(strlen(n) + 1, 0);
+	handles[nhandles++] = h = (HANDLE *)xmalloc(sizeof(HANDLE));
+	h->h_name = (char *)xmalloc(strlen(n) + 1);
 	strcpy(h->h_name, n);
 	h->h_di = NULL;
 	return(h);
@@ -1208,7 +1194,7 @@ static HANDLE *hadd(char *n)
 
 static int hsearch(char *n, int which, HANDLE **pret)
 {
-	int i;
+	unsigned i;
 	HANDLE **ph;
 
 	if (strcmp(n, lasthandle[which]->h_name) == 0) {
@@ -1233,12 +1219,12 @@ static DIRINFO *dadd(DEVID v, DIRID d)
 
 	if (ndirs == dirroom) {
 		dirroom *= 2;
-		newdirs = (DIRINFO **)myalloc(dirroom * sizeof(DIRINFO *));
+		newdirs = (DIRINFO **)xmalloc(dirroom * sizeof(DIRINFO *));
 		memcpy(newdirs, dirs, ndirs * sizeof(DIRINFO *));
-		chgive(dirs, ndirs * sizeof(DIRINFO *));
+		free(dirs);
 		dirs = newdirs;
 	}
-	dirs[ndirs++] = di = (DIRINFO *)challoc(sizeof(DIRINFO), 1);
+	dirs[ndirs++] = di = (DIRINFO *)xmalloc(sizeof(DIRINFO));
 	di->di_vid = v;
 	di->di_did = d;
 	di->di_nfils = 0;
@@ -1249,16 +1235,13 @@ static DIRINFO *dadd(DEVID v, DIRID d)
 
 static DIRINFO *dsearch(DEVID v, DIRID d)
 {
-	int i;
-	DIRINFO *di;
-
-	for(i = 0, di = *dirs; i < ndirs; i++, di++)
-		if (v == di->di_vid && d == di->di_did)
-			return(di);
+	for (unsigned i = 0; i < ndirs; i++)
+		if (v == dirs[i]->di_vid && d == dirs[i]->di_did)
+			return(dirs[i]);
 	return(NULL);
 }
 
-static int match(char *pat, char *s, char **start1, int *len1)
+static int match(char *pat, char *s, char **start1, size_t *len1)
 {
 	char c;
 
@@ -1331,6 +1314,7 @@ static int match(char *pat, char *s, char **start1, int *len1)
 			break;
 		case ESC:
 			c = *(++pat);
+			/* FALLTHROUGH */
 		default:
 			if (c == *s) {
 				pat++;
@@ -1343,10 +1327,9 @@ static int match(char *pat, char *s, char **start1, int *len1)
 
 static void makerep(void)
 {
-	int l, x;
-	int i, cnv;
-	char *q;
-	char *p, *pat, c, pc;
+	size_t l, x, i;
+	int cnv;
+	char *q, *p, *pat, c, pc;
 
 	repbad = 0;
 	p = fullrep;
@@ -1364,33 +1347,33 @@ static void makerep(void)
 			else
 				cnv = STAY;
 			for(x = 0; ;x *= 10) {
-				x += c - '0';
+				x += (size_t)(c - '0');
 				c = *(pat+1);
 				if (!isdigit(c))
 					break;
 				pat++;
 			}
 			--x;
-			if (l + len[x] >= MAXPATH)
+			if (l + length[x] >= PATH_MAX)
 				goto toolong;
 			switch (cnv) {
 			case STAY:
-				memmove(p, start[x], len[x]);
-				p += len[x];
+				memmove(p, start[x], length[x]);
+				p += length[x];
 				break;
 			case LOWER:
-				for (i = len[x], q = start[x]; i > 0; i--, p++, q++)
-					*p = mylower(*q);
+				for (i = length[x], q = start[x]; i > 0; i--, p++, q++)
+					*p = (char)tolower(*q);
 				break;
 			case UPPER:
-				for (i = len[x], q = start[x]; i > 0; i--, p++, q++)
-					*p = myupper(*q);
+				for (i = length[x], q = start[x]; i > 0; i--, p++, q++)
+					*p = (char)toupper(*q);
 			}
 		}
 		else {
 			if (c == ESC)
 				c = *(++pat);
-			if (l == MAXPATH)
+			if (l == PATH_MAX)
 				goto toolong;
 			if (
 				(
@@ -1407,7 +1390,7 @@ static void makerep(void)
 				)
 			) {
 				repbad = 1;
-				if (l + STRLEN(EMPTY) >= MAXPATH)
+				if (l + STRLEN(EMPTY) >= PATH_MAX)
 					goto toolong;
 				strcpy(p, EMPTY);
 				p += STRLEN(EMPTY);
@@ -1432,11 +1415,11 @@ static void checkcollisions(void)
 {
 	REPDICT *rd, *prd;
 	REP *p, *q;
-	int i, mult, oldnreps;
+	unsigned i, mult, oldnreps;
 
 	if (nreps == 0)
 		return;
-	rd = (REPDICT *)myalloc(nreps * sizeof(REPDICT));
+	rd = (REPDICT *)xmalloc(nreps * sizeof(REPDICT));
 	for (
 		q = &hrep, p = q->r_next, prd = rd, i = 0;
 		p != NULL;
@@ -1476,7 +1459,7 @@ static void checkcollisions(void)
 				prd->rd_p->r_hto->h_name, prd->rd_nto);
 			mult = 0;
 		}
-	chgive(rd, oldnreps * sizeof(REPDICT));
+	free(rd);
 }
 
 static int rdcmp(const void *p1, const void *p2)
@@ -1486,10 +1469,10 @@ static int rdcmp(const void *p1, const void *p2)
 	REPDICT *rd1 = (REPDICT *)p1;
 	REPDICT *rd2 = (REPDICT *)p2;
 	if (
-		(ret = rd1->rd_dto - rd2->rd_dto) == 0 &&
+		(ret = (int)(long)(rd1->rd_dto - rd2->rd_dto)) == 0 &&
 		(ret = strcmp(rd1->rd_nto, rd2->rd_nto)) == 0
 	)
-		ret = rd1->rd_i - rd2->rd_i;
+		ret = (int)(long)(rd1->rd_i - rd2->rd_i);
 	return(ret);
 }
 
@@ -1652,7 +1635,8 @@ static void goonordie(void)
 static void doreps(void)
 {
 	char *fstart;
-	int k, printaliased = 0, alias = 0;
+	unsigned k;
+	int printaliased = 0, alias = 0;
 	REP *first, *p;
 	long aliaslen = 0l;
 
@@ -1682,7 +1666,7 @@ static void doreps(void)
 				strcpy(fstart, p->r_ffrom->fi_name);
 			if (!noex) {
 				if (p->r_fdel != NULL && !(op & (APPEND | OVERWRITE)))
-					myunlink(fullrep, p->r_fdel);
+					myunlink(fullrep);
 				if (
 					(op & (COPY | APPEND)) ?
 						copy(p->r_ffrom,
@@ -1717,7 +1701,7 @@ static void doreps(void)
 		printaliased = 0;
 	}
 	if (k != nreps)
-		fprintf(stderr, "Strange, did %d reps; %d were expected.\n",
+		fprintf(stderr, "Strange, did %u reps; %u were expected.\n",
 			k, nreps);
 	if (k == 0)
 		fprintf(stderr, "Nothing done.\n");
@@ -1809,20 +1793,20 @@ static void showdone(REP *fin)
 		}
 }
 
-static void breakout(int signum)
+static void breakout(int signum _GL_UNUSED_PARAMETER)
 {
 	fflush(stdout);
 	fprintf(stderr, "Aborting, nothing done.\n");
 	exit(1);
 }
 
-static void breakrep(int signum)
+static void breakrep(int signum _GL_UNUSED_PARAMETER)
 {
 	gotsig = 1;
 	return;
 }
 
-static void breakstat(int signum)
+static void breakstat(int signum _GL_UNUSED_PARAMETER)
 {
 	exit(1);
 }
@@ -1835,7 +1819,7 @@ static void quit(void)
 
 static int copymove(REP *p)
 {
-	return(copy(p->r_ffrom, -1L) || myunlink(pathbuf, p->r_ffrom));
+	return(copy(p->r_ffrom, -1L) || myunlink(pathbuf));
 }
 
 
@@ -1846,7 +1830,9 @@ static int copymove(REP *p)
 static int copy(FILEINFO *ff, off_t len)
 {
 	char buf[BUFSIZE];
-	int f, t, k, mode, perm;
+	int f, t, mode;
+	mode_t perm;
+	ssize_t k;
 	struct utimbuf tim;
 	struct stat fstat;
 
@@ -1854,7 +1840,7 @@ static int copy(FILEINFO *ff, off_t len)
 		return(-1);
 	perm =
 		(op & (APPEND | OVERWRITE)) ?
-			(~oldumask & RWMASK) | (ff->fi_mode & ~RWMASK) :
+			(~oldumask & RWMASK) | (ff->fi_mode & (mode_t)~RWMASK) :
 			ff->fi_mode
 		;
 
@@ -1872,14 +1858,14 @@ static int copy(FILEINFO *ff, off_t len)
 		while (
 			len != 0 &&
 			(k = read(f, buf, (len > BUFSIZE) ? BUFSIZE : (size_t)len)) > 0 &&
-			write(t, buf, k) == k
+			write(t, buf, (size_t)k) == k
 		)
 			len -= k;
 		if (len == 0)
 			k = 0;
 	}
 	else
-		while ((k = read(f, buf, BUFSIZE)) > 0 && write(t, buf, k) == k)
+		while ((k = read(f, buf, BUFSIZE)) > 0 && write(t, buf, (size_t)k) == k)
 			;
 	if (!(op & (APPEND | OVERWRITE)))
 		if (
@@ -1903,7 +1889,7 @@ static int copy(FILEINFO *ff, off_t len)
 	return(0);
 }
 
-static int myunlink(char *n, FILEINFO *f)
+static int myunlink(char *n)
 {
 	if (unlink(n)) {
 		fprintf(stderr, "Strange, can not unlink %s.\n", n);
@@ -1912,7 +1898,7 @@ static int myunlink(char *n, FILEINFO *f)
 	return(0);
 }
 
-static int getreply(char *m, int failact)
+static int getreply(const char *m, int failact)
 {
 	static FILE *tty = NULL;
 	int c, r;
@@ -1937,62 +1923,11 @@ static int getreply(char *m, int failact)
 		if (r != '\n')
 			while ((c = fgetc(tty)) != '\n' && c != EOF)
 				;
-		r = mylower(r);
+		r = tolower(r);
 		if (r == 'y' || r == 'n')
 			return(r == 'y');
 		fprintf(stderr, "Yes or No? ");
 	}
-}
-
-static void *myalloc(unsigned k)
-{
-	void *ret;
-
-	if (k == 0)
-		return(NULL);
-	if ((ret = (void *)malloc(k)) == NULL) {
-		fprintf(stderr, "Insufficient memory.\n");
-		quit();
-	}
-	return(ret);
-}
-
-static void *challoc(int k, int which)
-{
-	void *ret;
-	CHUNK *p, *q;
-	SLICER *sl = &(slicer[which]);
-
-	if (k > sl->sl_len) {
-		for (
-			q = NULL, p = freechunks;
-			p != NULL && (sl->sl_len = p->ch_len) < k;
-			q = p, p = p->ch_next
-		)
-			;
-		if (p == NULL) {
-			sl->sl_len = CHUNKSIZE - sizeof(CHUNK *);
-			p = (CHUNK *)myalloc(CHUNKSIZE);
-		}
-		else if (q == NULL)
-			freechunks = p->ch_next;
-		else
-			q->ch_next = p->ch_next;
-		p->ch_next = sl->sl_first;
-		sl->sl_first = p;
-		sl->sl_unused = (char *)&(p->ch_len);
-	}
-	sl->sl_len -= k;
-	ret = (void *)sl->sl_unused;
-	sl->sl_unused += k;
-	return(ret);
-}
-
-static void chgive(void *p, unsigned k)
-{
-	((CHUNK *)p)->ch_len = k - sizeof(CHUNK *);
-	((CHUNK *)p)->ch_next = freechunks;
-	freechunks = (CHUNK *)p;
 }
 
 static char *mygets(char *s, int l)
