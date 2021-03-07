@@ -228,7 +228,6 @@ static int copymove(REP *p);
 static int copy(FILEINFO *f, long len);
 static int myunlink(char *n);
 static int getreply(const char *m, int failact);
-static char *mygets(char *s, int l);
 static int getstat(char *full, FILEINFO *f);
 static int dwritable(HANDLE *h);
 static int fwritable(char *hname, FILEINFO *f);
@@ -247,7 +246,6 @@ static unsigned nreps = 0;
 static REP hrep, *lastrep = &hrep;
 
 static int badreps = 0, paterr = 0, direrr, failed = 0, gotsig = 0, repbad;
-static FILE *outfile;
 
 static char TEMP[] = "$$mmvtmp.";
 static char TOOLONG[] = "(too long)";
@@ -283,8 +281,6 @@ static dev_t cwdv = -1UL;
 int main(int argc, char *argv[])
 {
 	char *frompat, *topat;
-
-	outfile = stdout;
 
 	init();
 	procargs(argc, argv, &frompat, &topat);
@@ -1678,7 +1674,7 @@ static void doreps(void)
 			if (verbose || noex) {
 				if (p->r_flags & R_ISALIASED && !printaliased)
 					strcpy(fstart, p->r_ffrom->fi_name);
-				fprintf(outfile, "%s %c%c %s%s%s\n",
+				fprintf(stdout, "%s %c%c %s%s%s\n",
 					pathbuf,
 					p->r_flags & R_ISALIASED ? '=' : '-',
 					p->r_flags & R_ISCYCLE ? '^' : '>',
@@ -1737,30 +1733,14 @@ static int movealias(REP *first, REP *p, int *pprintaliased)
 
 static int snap(REP *first, REP *p)
 {
-	char fname[80];
-	int redirected = 0;
-
 	if (noex)
 		exit(1);
 
 	failed = 1;
 	signal(SIGINT, breakstat);
-	if (
-		badstyle == ASKBAD &&
-		isatty(fileno(stdout)) &&
-		getreply("Redirect standard output to file? ", 0)
-	) {
-		redirected = 1;
-		umask(oldumask);
-		while (
-			fprintf(stderr, "File name> "),
-			(outfile = fopen(mygets(fname, 80), "w")) == NULL
-		)
-			fprintf(stderr, "Can't open %s.\n", fname);
-	}
-	if (redirected || !verbose)
+	if (!verbose)
 		showdone(p);
-	fprintf(outfile, "The following left undone:\n");
+	fprintf(stdout, "The following left undone:\n");
 	noex = 1;
 	return(first != p);
 }
@@ -1773,7 +1753,7 @@ static void showdone(REP *fin)
 		for (p = first; p != NULL; p = p->r_thendo) {
 			if (p == fin)
 				return;
-			fprintf(outfile, "%s%s %c%c %s%s : done%s\n",
+			fprintf(stdout, "%s%s %c%c %s%s : done%s\n",
 				p->r_hfrom->h_name, p->r_ffrom->fi_name,
 				p->r_flags & R_ISALIASED ? '=' : '-',
 				p->r_flags & R_ISCYCLE ? '^' : '>',
@@ -1917,19 +1897,4 @@ static int getreply(const char *m, int failact)
 			return(r == 'y');
 		fprintf(stderr, "Yes or No? ");
 	}
-}
-
-static char *mygets(char *s, int l)
-{
-	char *nl;
-
-	for (;;) {
-		if (fgets(s, l, stdin) == NULL)
-			return(NULL);
-		if ((nl = strchr(s, '\n')) != NULL)
-			break;
-		fprintf(stderr, "Input string too long. Try again> ");
-	}
-	*nl = '\0';
-	return(s);
 }
