@@ -325,19 +325,15 @@ static void init(void)
 
 static void procargs(int argc, char **argv, char **pfrompat, char **ptopat)
 {
-	char *p;
-	int c;
 	char *cmdname = basename(argv[0]);
-
-#define CMDNAME cmdname
 
 	op = DFLT;
 	verbose = noex = matchall = 0;
 	delstyle = ASKDEL;
 	badstyle = ASKBAD;
 	for (argc--, argv++; argc > 0 && **argv == '-'; argc--, argv++)
-		for (p = *argv + 1; *p != '\0'; p++) {
-			c = tolower(*p);
+		for (char *p = *argv + 1; *p != '\0'; p++) {
+			char c = *p;
 			if (c == '-') {
 				argc--;
 				argv++;
@@ -374,7 +370,7 @@ static void procargs(int argc, char **argv, char **pfrompat, char **ptopat)
 			else if (c == 's' && op == DFLT)
 				op = SYMLINK;
 			else {
-				fprintf(stderr, USAGE, CMDNAME, OTHEROPT);
+				fprintf(stderr, USAGE, cmdname, OTHEROPT);
 				exit(1);
 			}
 		}
@@ -408,7 +404,7 @@ endargs:
 		*ptopat = *(argv++);
 	}
 	else {
-		fprintf(stderr, USAGE, CMDNAME, OTHEROPT);
+		fprintf(stderr, USAGE, cmdname, OTHEROPT);
 		exit(1);
 	}
 }
