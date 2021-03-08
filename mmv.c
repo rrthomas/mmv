@@ -1149,10 +1149,7 @@ static void takedir(const char *p, DIRINFO *di, int sticky)
 	while ((dp = readdir(dirp)) != NULL) {
 		if (cnt == room) {
 			room *= 2;
-			fils = (FILEINFO **)xmalloc(room * sizeof(FILEINFO *));
-			memcpy(fils, di->di_fils, cnt * sizeof(FILEINFO *));
-			free(di->di_fils);
-			di->di_fils = fils;
+			di->di_fils = (FILEINFO **)xrealloc(di->di_fils, room * sizeof(FILEINFO *));
 			fils = di->di_fils + cnt;
 		}
 		*fils = f = (FILEINFO *)xmalloc(sizeof(FILEINFO));
@@ -1177,14 +1174,11 @@ static int fcmp(const void *pf1, const void *pf2)
 
 static HANDLE *hadd(char *n)
 {
-	HANDLE **newhandles, *h;
+	HANDLE *h;
 
 	if (nhandles == handleroom) {
 		handleroom *= 2;
-		newhandles = (HANDLE **)xmalloc(handleroom * sizeof(HANDLE *));
-		memcpy(newhandles, handles, nhandles * sizeof(HANDLE *));
-		free(handles);
-		handles = newhandles;
+		handles = (HANDLE **)xrealloc(handles, handleroom * sizeof(HANDLE *));
 	}
 	handles[nhandles++] = h = (HANDLE *)xmalloc(sizeof(HANDLE));
 	h->h_name = (char *)xmalloc(strlen(n) + 1);
@@ -1216,14 +1210,10 @@ static int hsearch(char *n, int which, HANDLE **pret)
 static DIRINFO *dadd(dev_t v, ino_t d)
 {
 	DIRINFO *di;
-	DIRINFO **newdirs;
 
 	if (ndirs == dirroom) {
 		dirroom *= 2;
-		newdirs = (DIRINFO **)xmalloc(dirroom * sizeof(DIRINFO *));
-		memcpy(newdirs, dirs, ndirs * sizeof(DIRINFO *));
-		free(dirs);
-		dirs = newdirs;
+		dirs = (DIRINFO **)xrealloc(dirs, dirroom * sizeof(DIRINFO *));
 	}
 	dirs[ndirs++] = di = (DIRINFO *)xmalloc(sizeof(DIRINFO));
 	di->di_vid = v;
