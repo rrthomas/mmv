@@ -520,7 +520,7 @@ static void matchpat(void)
 static int parsepat(void)
 {
 	char *p, *lastname, c;
-	int totwilds, instage, x;
+	int totwilds, instage;
 #define TRAILESC "%s -> %s : trailing %c is superfluous.\n"
 
 	lastname = from;
@@ -640,7 +640,8 @@ static int parsepat(void)
 					from, to, c);
 				return(-1);
 			}
-			for(x = 0; ;x *= 10) {
+			int x;
+			for (x = 0; ;x *= 10) {
 				x += c - '0';
 				c = *(p+1);
 				if (!isdigit(c))
@@ -1038,14 +1039,14 @@ static int fwritable(char *hname, FILEINFO *f)
 static FILEINFO *fsearch(char *s, DIRINFO *d)
 {
 	FILEINFO **fils = d->di_fils;
-	size_t nfils = d->di_nfils, first, last, k;
-	int res;
+	size_t nfils = d->di_nfils;
 
-	for (first = 0, last = nfils - 1;;) {
+	for (size_t first = 0, last = nfils - 1;;) {
 		if (last < first)
 			return(NULL);
-		k = (first + last) >> 1;
-		if ((res = strcmp(s, fils[k]->fi_name)) == 0)
+		size_t k = (first + last) >> 1;
+		int res = strcmp(s, fils[k]->fi_name);
+		if (res == 0)
 			return(fils[k]);
 		if (res < 0)
 			last = k - 1;
@@ -1056,18 +1057,16 @@ static FILEINFO *fsearch(char *s, DIRINFO *d)
 
 static size_t ffirst(char *s, size_t n, DIRINFO *d)
 {
-	size_t first, k, last;
-	int res;
 	FILEINFO **fils = d->di_fils;
 	size_t nfils = d->di_nfils;
 
 	if (nfils == 0 || n == 0)
 		return(0);
-	first = 0;
-	last = nfils - 1;
+	size_t first = 0;
+	size_t last = nfils - 1;
 	for(;;) {
-		k = (first + last) >> 1;
-		res = strncmp(s, fils[k]->fi_name, n);
+		size_t k = (first + last) >> 1;
+		int res = strncmp(s, fils[k]->fi_name, n);
 		if (first == last)
 			return(res == 0 ? k : nfils);
 		else if (res > 0)
@@ -1174,32 +1173,28 @@ static int fcmp(const void *pf1, const void *pf2)
 
 static HANDLE *hadd(char *n)
 {
-	HANDLE *h;
-
 	if (nhandles == handleroom) {
 		handleroom *= 2;
 		handles = (HANDLE **)xrealloc(handles, handleroom * sizeof(HANDLE *));
 	}
-	handles[nhandles++] = h = (HANDLE *)xmalloc(sizeof(HANDLE));
+	HANDLE *h = (HANDLE *)xmalloc(sizeof(HANDLE));
 	h->h_name = (char *)xmalloc(strlen(n) + 1);
 	strcpy(h->h_name, n);
 	h->h_di = NULL;
+	handles[nhandles++] = h;
 	return(h);
 }
 
 static int hsearch(char *n, int which, HANDLE **pret)
 {
-	unsigned i;
-	HANDLE **ph;
-
 	if (strcmp(n, lasthandle[which]->h_name) == 0) {
 		*pret = lasthandle[which];
 		return(1);
 	}
 
-	for(i = 0, ph = handles; i < nhandles; i++, ph++)
-		if (strcmp(n, (*ph)->h_name) == 0) {
-			lasthandle[which] = *pret = *ph;
+	for (unsigned i = 0; i < nhandles; i++)
+		if (strcmp(n, handles[i]->h_name) == 0) {
+			lasthandle[which] = *pret = handles[i];
 			return(1);
 		}
 
@@ -1209,18 +1204,17 @@ static int hsearch(char *n, int which, HANDLE **pret)
 
 static DIRINFO *dadd(dev_t v, ino_t d)
 {
-	DIRINFO *di;
-
 	if (ndirs == dirroom) {
 		dirroom *= 2;
 		dirs = (DIRINFO **)xrealloc(dirs, dirroom * sizeof(DIRINFO *));
 	}
-	dirs[ndirs++] = di = (DIRINFO *)xmalloc(sizeof(DIRINFO));
+	DIRINFO *di = (DIRINFO *)xmalloc(sizeof(DIRINFO));
 	di->di_vid = v;
 	di->di_did = d;
 	di->di_nfils = 0;
 	di->di_fils = NULL;
 	di->di_flags = 0;
+	dirs[ndirs++] = di;
 	return(di);
 }
 
@@ -1406,7 +1400,7 @@ static void checkcollisions(void)
 {
 	REPDICT *rd, *prd;
 	REP *p, *q;
-	unsigned i, mult, oldnreps;
+	unsigned i, oldnreps;
 
 	if (nreps == 0)
 		return;
@@ -1422,7 +1416,7 @@ static void checkcollisions(void)
 		prd->rd_i = i;
 	}
 	qsort(rd, nreps, sizeof(REPDICT), rdcmp);
-	mult = 0;
+	unsigned mult = 0;
 	for (i = 0, prd = rd, oldnreps = nreps; i < oldnreps; i++, prd++)
 		if (
 			i < oldnreps - 1 &&
@@ -1469,10 +1463,10 @@ static int rdcmp(const void *p1, const void *p2)
 
 static void findorder(void)
 {
-	REP *p, *q, *t, *first, *pred;
+	REP *first, *pred;
 	FILEINFO *fi;
 
-	for (q = &hrep, p = q->r_next; p != NULL; q = p, p = p->r_next)
+	for (REP *q = &hrep, *p = q->r_next; p != NULL; q = p, p = p->r_next)
 		if (p->r_flags & R_SKIP) {
 			q->r_next = p->r_next;
 			p = q;
@@ -1495,7 +1489,7 @@ static void findorder(void)
 			while (pred->r_thendo != NULL)
 				pred = pred->r_thendo;
 			pred->r_thendo = p;
-			for (t = p; t != NULL; t = t->r_thendo)
+			for (REP *t = p; t != NULL; t = t->r_thendo)
 				t->r_first = first;
 			q->r_next = p->r_next;
 			p = q;
@@ -1504,9 +1498,7 @@ static void findorder(void)
 
 static void nochains(void)
 {
-	REP *p, *q;
-
-	for (q = &hrep, p = q->r_next; p != NULL; q = p, p = p->r_next)
+	for (REP *q = &hrep, *p = q->r_next; p != NULL; q = p, p = p->r_next)
 		if (p->r_flags & R_ISCYCLE || p->r_thendo != NULL) {
 			printchain(p);
 			printf("%s%s : no chain copies allowed.\n",
@@ -1528,13 +1520,12 @@ static void printchain(REP *p)
 
 static void scandeletes(int (*pkilldel)(REP *))
 {
-	REP *p, *q, *n;
-
-	for (q = &hrep, p = q->r_next; p != NULL; q = p, p = p->r_next) {
+	for (REP *q = &hrep, *p = q->r_next; p != NULL; q = p, p = p->r_next) {
 		if (p->r_fdel != NULL)
 			while ((*pkilldel)(p)) {
 				nreps--;
 				p->r_ffrom->fi_rep = MISTAKE;
+				REP *n;
 				if ((n = p->r_thendo) != NULL) {
 					if (op & MOVE)
 						n->r_fdel = p->r_ffrom;
@@ -1757,10 +1748,8 @@ static int snap(REP *first, REP *p)
 
 static void showdone(REP *fin)
 {
-	REP *first, *p;
-
-	for (first = hrep.r_next; ; first = first->r_next)
-		for (p = first; p != NULL; p = p->r_thendo) {
+	for (REP *first = hrep.r_next; ; first = first->r_next)
+		for (REP *p = first; p != NULL; p = p->r_thendo) {
 			if (p == fin)
 				return;
 			fprintf(stdout, "%s%s %c%c %s%s : done%s\n",
