@@ -59,22 +59,10 @@
 #endif
 #include "unused-parameter.h"
 
-
-#define USAGE \
-"Usage: \
-%s [-m|x|r|c|o|a|l%s] [-h] [-d|p] [-g|t] [-v|n] [from to]\n\
-\n\
-Use #[l|u]N in the ``to'' pattern to get the [lowercase|uppercase of the]\n\
-string matched by the N'th ``from'' pattern wildcard.\n\
-\n\
-A ``from'' pattern containing wildcards should be quoted when given\n\
-on the command line. You may also need to quote the ``to'' pattern.\n\
-\n\
-Use -- as the end of options.\n"
-
-#define OTHEROPT ""
+#include "cmdline.h"
 
 
+/* FIXME: use set_binary_mode */
 #ifndef O_BINARY
 #define O_BINARY 0
 #endif
@@ -85,7 +73,6 @@ Use -- as the end of options.\n"
 #define STRLEN(s) (sizeof(s) - 1)
 
 
-#define DFLT 0x001
 #define NORMCOPY 0x002
 #define OVERWRITE 0x004
 #define NORMMOVE 0x008
@@ -307,10 +294,17 @@ int main(int argc, char *argv[])
 	return(failed ? 2 : nreps == 0 && (paterr || badreps));
 }
 
+static void free_allocs(void)
+{
+	free(dirs);
+	free(handles);
+}
+
 static void init(void)
 {
 	struct stat dstat;
 
+	atexit(free_allocs);
 	if ((home = getenv("HOME")) == NULL || strcmp(home, SLASHSTR) == 0)
 		home = "";
 	if (!stat(".", &dstat)) {
@@ -334,56 +328,43 @@ static void procargs(int argc, char **argv, char **pfrompat, char **ptopat)
 {
 	set_program_name(argv[0]);
 
-	op = DFLT;
-	verbose = noex = matchall = 0;
-	delstyle = ASKDEL;
-	badstyle = ASKBAD;
-	for (argc--, argv++; argc > 0 && **argv == '-'; argc--, argv++)
-		for (char *p = *argv + 1; *p != '\0'; p++) {
-			char c = *p;
-			if (c == '-') {
-				argc--;
-				argv++;
-				goto endargs;
-			}
-			if (c == 'v' && !noex)
-				verbose = 1;
-			else if (c == 'n' && !verbose)
-				noex = 1;
-			else if (c == 'h')
-				matchall = 1;
-			else if (c == 'd' && delstyle == ASKDEL)
-				delstyle = ALLDEL;
-			else if (c == 'p' && delstyle == ASKDEL)
-				delstyle = NODEL;
-			else if (c == 'g' && badstyle == ASKBAD)
-				badstyle = SKIPBAD;
-			else if (c == 't' && badstyle == ASKBAD)
-				badstyle = ABORTBAD;
-			else if (c == 'm' && op == DFLT)
-				op = NORMMOVE;
-			else if (c == 'x' && op == DFLT)
-				op = XMOVE;
-			else if (c == 'r' && op == DFLT)
-				op = DIRMOVE;
-			else if (c == 'c' && op == DFLT)
-				op = NORMCOPY;
-			else if (c == 'o' && op == DFLT)
-				op = OVERWRITE;
-			else if (c == 'a' && op == DFLT)
-				op = NORMAPPEND;
-			else if (c == 'l' && op == DFLT)
-				op = HARDLINK;
-			else if (c == 's' && op == DFLT)
-				op = SYMLINK;
-			else {
-				fprintf(stderr, USAGE, program_name, OTHEROPT);
-				exit(1);
-			}
-		}
+	struct gengetopt_args_info args_info;
+	if (cmdline_parser(argc, argv, &args_info) != 0)
+		exit(EXIT_FAILURE);
 
-endargs:
-	if (op == DFLT) {
+	verbose = args_info.verbose_given != 0;
+	noex = args_info.dryrun_given != 0;
+	matchall = args_info.hidden_given != 0;
+
+	delstyle = ASKDEL;
+	if (args_info.force_given != 0)
+		delstyle = ALLDEL;
+	else if (args_info.protect_given != 0)
+		delstyle = NODEL;
+
+	badstyle = ASKBAD;
+	if (args_info.go_given != 0)
+		badstyle = SKIPBAD;
+	else if (args_info.terminate_given != 0)
+		badstyle = ABORTBAD;
+
+	if (args_info.move_given != 0)
+		op = NORMMOVE;
+	else if (args_info.copydel_given != 0)
+		op = XMOVE;
+	else if (args_info.rename_given != 0)
+		op = DIRMOVE;
+	else if (args_info.copy_given != 0)
+		op = NORMCOPY;
+	else if (args_info.overwrite_given != 0)
+		op = OVERWRITE;
+	else if (args_info.append_given != 0)
+		op = NORMAPPEND;
+	else if (args_info.hardlink_given != 0)
+		op = HARDLINK;
+	else if (args_info.symlink_given != 0)
+		op = SYMLINK;
+	else {
 		if (strcmp(program_name, MOVENAME) == 0)
 			op = XMOVE;
 		else if (strcmp(program_name, COPYNAME) == 0)
@@ -407,16 +388,20 @@ endargs:
 	if (badstyle != ASKBAD && delstyle == ASKDEL)
 		delstyle = NODEL;
 
-	if (argc == 0)
+	if (args_info.inputs_num == 0)
 		*pfrompat = NULL;
-	else if (argc == 2) {
-		*pfrompat = *(argv++);
-		*ptopat = *(argv++);
+	else if (args_info.inputs_num == 2) {
+		*pfrompat = args_info.inputs[0];
+		*ptopat = args_info.inputs[1];
 	}
 	else {
-		fprintf(stderr, USAGE, program_name, OTHEROPT);
+		/* Print message to stderr, not stdout. */
+		dup2(STDERR_FILENO, STDOUT_FILENO);
+		cmdline_parser_print_help();
 		exit(1);
 	}
+
+	cmdline_parser_free(&args_info);
 }
 
 static void domatch(char *cfrom, char *cto)

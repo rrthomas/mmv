@@ -30,13 +30,17 @@ AM_CFLAGS = $(WARN_CFLAGS)
 man_MANS = mmv.1
 
 bin_PROGRAMS = mmv$(EXEEXT)
-mmv_SOURCES = mmv.c
+mmv_SOURCES = mmv.c cmdline.c cmdline.h
 mmv_LDADD = $(LDADD)
 
 SYMLINKS = mcp$(EXEEXT) mln$(EXEEXT) mad$(EXEEXT)
 MAKELINKS = for n in $(SYMLINKS); do $(RM) $$n$(EXEEXT) && $(LN_S) mmv$(EXEEXT) $$n; done
 
-EXTRA_DIST = $(man_MANS)
+EXTRA_SRCS = opts.ggo
+EXTRA_DIST = $(man_MANS) $(EXTRA_SRCS) m4/gnulib-cache.m4
+
+cmdline.h cmdline.c: opts.ggo
+	gengetopt < opts.ggo --unamed-opts
 
 all-local: mmv$(EXEEXT)
 	$(MAKELINKS)
