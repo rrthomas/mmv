@@ -52,6 +52,7 @@
 #include <limits.h>
 
 #include "progname.h"
+#include "binary-io.h"
 #include "pathmax.h"
 #include "xalloc.h"
 #ifndef _WIN32
@@ -61,11 +62,6 @@
 
 #include "cmdline.h"
 
-
-/* FIXME: use set_binary_mode */
-#ifndef O_BINARY
-#define O_BINARY 0
-#endif
 
 #define ESC '\\'
 #define SLASH '/'
