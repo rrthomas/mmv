@@ -39,6 +39,8 @@ MAKELINKS = for n in $(SYMLINKS); do $(RM) $$n$(EXEEXT) && $(LN_S) mmv$(EXEEXT) 
 EXTRA_SRCS = opts.ggo
 EXTRA_DIST = $(man_MANS) $(EXTRA_SRCS) m4/gnulib-cache.m4
 
+mmv.o: cmdline.h
+
 cmdline.h cmdline.c: opts.ggo
 	gengetopt < opts.ggo --unamed-opts
 
