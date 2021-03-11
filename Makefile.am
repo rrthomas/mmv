@@ -37,7 +37,18 @@ SYMLINKS = mcp$(EXEEXT) mln$(EXEEXT) mad$(EXEEXT)
 MAKELINKS = for n in $(SYMLINKS); do $(RM) $$n$(EXEEXT) && $(LN_S) mmv$(EXEEXT) $$n; done
 
 EXTRA_SRCS = opts.ggo
-EXTRA_DIST = $(man_MANS) $(EXTRA_SRCS) m4/gnulib-cache.m4
+EXTRA_DIST = $(man_MANS) $(EXTRA_SRCS) m4/gnulib-cache.m4 mmv-include.man build-aux/mmv-help2man-wrapper
+
+DISTCLEANFILES = $(man_MANS)
+
+mmv.1: $(builddir)/mmv$(EXEEXT) build-aux/mmv-help2man-wrapper mmv-include.man
+## Exit gracefully if $@ is not writeable, such as during distcheck!
+	$(AM_V_GEN)if ( touch $@.w && rm -f $@.w; ) >/dev/null 2>&1; then \
+	  $(top_srcdir)/build-aux/missing --run $(HELP2MAN) --no-info \
+		--no-discard-stderr \
+		--include=$(srcdir)/mmv-include.man \
+		--output=$@ $(srcdir)/build-aux/mmv-help2man-wrapper; \
+	fi
 
 mmv.o: cmdline.h
 

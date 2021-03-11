@@ -58,7 +58,7 @@ if test "$gl_gcc_warnings" = yes; then
     gl_WARN_ADD([$w])
   done
 
-  dnl Add extra warnings
+  dnl Add an extra warning
   gl_WARN_ADD([-Wconversion])
 
   # When compiling with GCC, prefer -isystem to -I when including system
@@ -70,12 +70,11 @@ fi
 AC_SUBST([ISYSTEM])
 
 dnl help2man
-dnl Set a value even if not found, so that an invocation via build-aux/missing works
-AC_PATH_PROG([HELP2MAN], [help2man], [help2man])
+AC_PATH_PROG([HELP2MAN], [help2man], [AC_MSG_ERROR([help2man not found in PATH])])
 
 dnl Create files
 AC_CONFIG_HEADER([config.h])
 AC_OUTPUT([
 	Makefile
-        lib/Makefile
+	lib/Makefile
 ])

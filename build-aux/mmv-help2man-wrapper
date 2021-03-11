@@ -1,0 +1,9 @@
+#!/bin/sh
+# Wrap mmv for help2man
+# Filter out group headings so options will be processed properly.
+
+if test "$1" = "--help"; then
+  ./mmv $1 | grep -v "^ Group" | grep -v "^  [A-Z]"
+else
+  ./mmv $1
+fi

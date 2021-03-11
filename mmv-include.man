@@ -1,53 +1,8 @@
-.TH MMV 1 "March 10, 2021 (v2.0)"
-.SH NAME
-mmv \- move/copy/append/link multiple files by wildcard patterns
-.SH SYNOPSIS
-.B mmv
-[\fB\-m\fP|\fBx\fP|\fBr\fP|\fBc\fP|\fBo\fP|\fBa\fP|\fBl\fP|\fBs\fP]
-[\fB\-h\fP]
-[\fB\-d\fP|\fBp\fP]
-[\fB\-g\fP|\fBt\fP]
-[\fB\-v\fP|\fBn\fP]
-[\fB\-\-\fP]
-[\fBfrom to\fP]
-.SH "EXAMPLES"
-Rename all
-.I *.jpeg
-files in the current directory to
-\fI*.jpg\fR:
+[NAME]
+mmv - move/copy/append/link multiple files by wildcard patterns
 
-.in +3
-mmv '*.jpeg' '#1.jpg'
-.in -3
-
-Replace the first occurrence of
-.I abc
-with
-.I xyz
-in all files in the current directory:
-
-.in +3
-mmv '*abc*' '#1xyz#2'
-.in -3
-
-Rename files ending in \fI.html.en\fR, \fI.html.de\fR, etc. to ending
-in \fI.en.html\fR, \fI.de.html\fR, etc. in the current directory:
-
-.in +3
-mmv '*.html.??' '#1.#2#3.html'
-.in -3
-
-Rename music files from
-.I <track no.> - <interpreter> - <song title>.ogg
-to
-.I <interpreter> - <track no.> - <song title>.ogg
-in the current directory:
-
-.in +3
-mmv '* - * - *.ogg' '#2 - #1 - #3.ogg'
-.in -3
-
-.SH "DESCRIPTION"
+[>DESCRIPTION]
+.PP
 .I Mmv
 moves (or copies, appends, or links, as specified)
 each source file matching a
@@ -81,47 +36,47 @@ above.
 If none of these are specified,
 the task is given by the command name under which
 .I mmv
-was invoked (argv[0]):
+was invoked:
 
 	command name	default task
 
-	mmv			\-x
+	mmv			\-\-copydel
 .br
-	mcp			\-c
+	mcp			\-\-copy
 .br
-	mad			\-a
+	mad			\-\-append
 .br
-	mln			\-l
+	mln			\-\-hardlink
 .PP
 The task option choices are:
 .TP
-\-m :
+\fB\-\-move\fR:
 move source file to target name.
 Both must be on the same device.
 If the source file is a symbolic link,
 moves the link without checking if the link's target from the new
 directory is different than the old.
 .TP
-\-x :
-same as \-m, except cross-device moves are done
+\fB\-\-copydel\fR:
+same as \-\-move, except cross-device moves are done
 by copying, then deleting source.
 When copying, sets the permission bits
 and file modification time
 of the target file to that of the source file.
 .TP
-\-r :
+\fB\-\-rename\fR:
 rename source file or directory to target name.
 The target name must not include a path:
 the file remains in the same directory in all cases.
 .TP
-\-c :
+\fB\-\-copy\fR:
 copy source file to target name.
 Sets the file modification time and permission bits
 of the target file to that of the source file,
 regardless of whether the target file already exists.
 Chains and cycles (to be explained below) are not allowed.
 .TP
-\-o :
+\fB\-\-overwrite\fR:
 overwrite target name with source file.
 If target file exists, it is overwritten,
 keeping its original owner and permission bits.
@@ -131,24 +86,24 @@ set according to
 and the execute permission bits copied from the source file.
 In either case, the file modification time is set to the current time.
 .TP
-\-a :
+\fB\-\-append\fR:
 append contents of source file to target name.
 Target file modification time is set to the current time.
 If target file does not exist,
 it is created with permission bits
-set as under \-o.
-Unlike all other options, \-a allows multiple source files to have the
+set as under \-\-overwrite.
+Unlike all other options, \-\-append allows multiple source files to have the
 same target name, e.g. "mmv \-a \\*.c big" will append all ".c" files to "big".
 Chains and cycles are also allowed, so "mmv \-a f f" will double up "f".
 .TP
-\-l :
+\fB\-\-hardlink\fR:
 link target name to source file.
 Both must be on the same device,
 and the source must not be a directory.
 Chains and cycles are not allowed.
 .TP
-\-s :
-same as \-l, but use symbolic links instead of hard links.
+\fB\-\-symlink\fR:
+same as \-\-hardlink, but use symbolic links instead of hard links.
 For the resulting link to aim back at the source,
 either the source name must begin with a '/',
 or the target must reside in either the current or the source directory.
@@ -156,10 +111,8 @@ If none of these conditions are met, the link is refused.
 However, source and target can reside on different devices,
 and the source can be a directory.
 .PP
-Only one of these option may be given,
+Only one of these options may be given,
 and it applies to all matching files.
-Remaining options need not be given separately,
-i.e. "mmv \-mk" is allowed.
 
 .ce
 Multiple Pattern Pairs / Reading Patterns from STDIN
@@ -206,7 +159,7 @@ would give the error message "a \-> c : no match" because file "a"
 was already matched by the first pattern pair.
 
 \fBWARNING:\fR This operation mode does \fBnot\fR work if the patterns
-itself contain \fBspaces\fR.  See
+contain \fBspaces\fR.  See
 .I http://bugs.debian.org/149873
 for details.
 
@@ -509,6 +462,43 @@ then feed this report back to
 on standard input
 to have it complete the task.
 (The report can be captured by re-running the same command with its output redirected to a file.)
+.SH "EXAMPLES"
+Rename all
+.I *.jpeg
+files in the current directory to
+\fI*.jpg\fR:
+
+.in +3
+mmv '*.jpeg' '#1.jpg'
+.in -3
+
+Replace the first occurrence of
+.I abc
+with
+.I xyz
+in all files in the current directory:
+
+.in +3
+mmv '*abc*' '#1xyz#2'
+.in -3
+
+Rename files ending in \fI.html.en\fR, \fI.html.de\fR, etc. to ending
+in \fI.en.html\fR, \fI.de.html\fR, etc. in the current directory:
+
+.in +3
+mmv '*.html.??' '#1.#2#3.html'
+.in -3
+
+Rename music files from
+.I <track no.> - <interpreter> - <song title>.ogg
+to
+.I <interpreter> - <track no.> - <song title>.ogg
+in the current directory:
+
+.in +3
+mmv '* - * - *.ogg' '#2 - #1 - #3.ogg'
+.in -3
+
 .SH "EXIT STATUS"
 .I Mmv
 exits with status 1 if it aborts before doing anything,
@@ -517,9 +507,7 @@ and with status 0 otherwise.
 .SH "SEE ALSO"
 mv(1), cp(1), ln(1), umask(1)
 .SH "AUTHOR"
-Vladimir Lanin
-.br
-lanin@csd2.nyu.edu
+Written by Vladimir Lanin and Reuben Thomas.
 .SH "BUGS"
 If the search pattern is not quoted,
 the shell expands the wildcards.
@@ -529,4 +517,4 @@ but can not determine that the lack of quotes is the cause.
 .PP
 To avoid difficulties in semantics and error checking,
 .I mmv
-refuses to move or create directories.
+refuses to create directories.

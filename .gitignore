@@ -5,7 +5,6 @@
 /Makefile.in
 /aclocal.m4
 /autom4te.cache/
-/build-aux/
 /config.h
 /config.h.in
 /config.log
@@ -19,5 +18,6 @@
 /mcp
 /mln
 /mmv
+/mmv.1
 /mmv-*.tar.gz
 /stamp-h1
