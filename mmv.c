@@ -172,8 +172,6 @@ static void init(void);
 static void procargs(int argc, char **argv,
 	char **pfrompat, char **ptopat);
 static void domatch(char *cfrom, char *cto);
-static int getpat(void);
-static size_t getword(char *buf);
 static void matchpat(void);
 static int parsepat(void);
 static int dostage(char *lastend, char *pathend,
@@ -384,9 +382,7 @@ static void procargs(int argc, char **argv, char **pfrompat, char **ptopat)
 	if (badstyle != ASKBAD && delstyle == ASKDEL)
 		delstyle = NODEL;
 
-	if (args_info.inputs_num == 0)
-		*pfrompat = NULL;
-	else if (args_info.inputs_num == 2) {
+	if (args_info.inputs_num == 2) {
 		*pfrompat = args_info.inputs[0];
 		*ptopat = args_info.inputs[1];
 	}
@@ -402,10 +398,7 @@ static void procargs(int argc, char **argv, char **pfrompat, char **ptopat)
 
 static void domatch(char *cfrom, char *cto)
 {
-	if (cfrom == NULL)
-		while (getpat())
-			matchpat();
-	else if ((fromlen = strlen(cfrom)) >= MAXPATLEN) {
+	if ((fromlen = strlen(cfrom)) >= MAXPATLEN) {
 		printf(PATLONG, cfrom);
 		paterr = 1;
 	}
@@ -418,74 +411,6 @@ static void domatch(char *cfrom, char *cto)
 		strcpy(to, cto);
 		matchpat();
 	}
-}
-
-static int getpat(void)
-{
-	int c, gotit = 0;
-	char extra[MAXPATLEN];
-
-	patflags = 0;
-	do {
-		if ((fromlen = getword(from)) == 0 || fromlen == SIZE_MAX)
-			goto nextline;
-
-		do {
-			if ((tolen = getword(to)) == 0) {
-				printf("%s -> ? : missing replacement pattern.\n", from);
-				goto nextline;
-			}
-			if (tolen == SIZE_MAX)
-				goto nextline;
-		} while (
-			tolen == 2 &&
-			(to[0] == '-' || to[0] == '=') &&
-			(to[1] == '>' || to[1] == '^')
-		);
-		if (getword(extra) == 0)
-			gotit = 1;
-		else if (strcmp(extra, "(*)") == 0) {
-			patflags |= R_DELOK;
-	    gotit = (getword(extra) == 0);
-		}
-
-nextline:
-		while ((c = getchar()) != '\n' && c != EOF)
-			;
-		if (c == EOF)
-			return(0);
-	} while (!gotit);
-
-	return(1);
-}
-
-static size_t getword(char *buf)
-{
-	int c, prevc;
-	size_t n;
-	char *p;
-
-	p = buf;
-	prevc = ' ';
-	n = 0;
-	while ((c = getchar()) != EOF && (prevc == ESC || !isspace(c))) {
-		if (n == SIZE_MAX)
-			continue;
-		if (n == MAXPATLEN - 1) {
-			*p = '\0';
-			printf(PATLONG, buf);
-			n = SIZE_MAX;
-		}
-		*(p++) = (char)c;
-		n++;
-		prevc = c;
-	}
-	*p = '\0';
-	while (c != EOF && isspace(c) && c != '\n')
-		c = getchar();
-	if (c != EOF)
-		ungetc(c, stdin);
-	return(n);
 }
 
 static void matchpat(void)
