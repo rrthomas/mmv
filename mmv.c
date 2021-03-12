@@ -84,7 +84,6 @@
 #define APPEND (NORMAPPEND | ZAPPEND)
 #define LINK (HARDLINK | SYMLINK)
 
-static char MOVENAME[] = "mmv";
 static char COPYNAME[] = "mcp";
 static char APPENDNAME[] = "mad";
 static char LINKNAME[] = "mln";
@@ -258,8 +257,6 @@ static REP mistake;
 #define MISTAKE (&mistake)
 
 
-#define DFLTOP XMOVE
-
 static const char *home;
 static size_t homelen;
 static uid_t uid, euid;
@@ -359,16 +356,14 @@ static void procargs(int argc, char **argv, char **pfrompat, char **ptopat)
 	else if (args_info.symlink_given != 0)
 		op = SYMLINK;
 	else {
-		if (strcmp(program_name, MOVENAME) == 0)
-			op = XMOVE;
-		else if (strcmp(program_name, COPYNAME) == 0)
+		if (strcmp(program_name, COPYNAME) == 0)
 			op = NORMCOPY;
 		else if (strcmp(program_name, APPENDNAME) == 0)
 			op = NORMAPPEND;
 		else if (strcmp(program_name, LINKNAME) == 0)
 			op = HARDLINK;
 		else
-			op = DFLTOP;
+			op = XMOVE;
 	}
 
 #ifndef _WIN32
@@ -712,8 +707,7 @@ static int keepmatch(FILEINFO *ffrom, char *pathend, size_t *pk, int needslash, 
 	}
 	strcpy(pathend, ffrom->fi_name);
 	getstat(pathbuf, ffrom);
-	if (!(ffrom->fi_stflags & FI_ISDIR) && !fils)
-	{
+	if (!(ffrom->fi_stflags & FI_ISDIR) && !fils) {
 		if (verbose)
 			printf("ignoring file %s\n", ffrom->fi_name);
 		return(0);
