@@ -20,7 +20,7 @@
 AC_PREREQ([2.64])
 
 dnl Initialise autoconf and automake
-AC_INIT([mmv], [2.0rc1], [rrt@sc3d.org],, [https://github.com/rrthomas/mmv])
+AC_INIT([mmv], [2.0rc2], [rrt@sc3d.org],, [https://github.com/rrthomas/mmv])
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([-Wall])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
