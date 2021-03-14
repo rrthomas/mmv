@@ -167,9 +167,7 @@ typedef struct {
 } REPDICT;
 
 
-static void init(void);
-static void procargs(int argc, char **argv,
-	char **pfrompat, char **ptopat);
+static void free_allocs(void);
 static void domatch(char *cfrom, char *cto);
 static void matchpat(void);
 static int parsepat(void);
@@ -269,30 +267,8 @@ int main(int argc, char *argv[])
 {
 	char *frompat, *topat;
 
-	init();
-	procargs(argc, argv, &frompat, &topat);
-	domatch(frompat, topat);
-	if (!(op & APPEND))
-		checkcollisions();
-	findorder();
-	if (op & (COPY | LINK))
-		nochains();
-	scandeletes(baddel);
-	goonordie();
-	if (!(op & APPEND) && delstyle == ASKDEL)
-		scandeletes(skipdel);
-	doreps();
-	return(failed ? 2 : nreps == 0 && (paterr || badreps));
-}
+	set_program_name(argv[0]);
 
-static void free_allocs(void)
-{
-	free(dirs);
-	free(handles);
-}
-
-static void init(void)
-{
 	struct stat dstat;
 
 	atexit(free_allocs);
@@ -313,11 +289,7 @@ static void init(void)
 	dirs = (DIRINFO **)xmalloc(dirroom * sizeof(DIRINFO *));
 	handles = (HANDLE **)xmalloc(handleroom * sizeof(HANDLE *));
 	ndirs = nhandles = 0;
-}
 
-static void procargs(int argc, char **argv, char **pfrompat, char **ptopat)
-{
-	set_program_name(argv[0]);
 
 	struct gengetopt_args_info args_info;
 	if (cmdline_parser(argc, argv, &args_info) != 0)
@@ -378,8 +350,8 @@ static void procargs(int argc, char **argv, char **pfrompat, char **ptopat)
 		delstyle = NODEL;
 
 	if (args_info.inputs_num == 2) {
-		*pfrompat = args_info.inputs[0];
-		*ptopat = args_info.inputs[1];
+		frompat = args_info.inputs[0];
+		topat = args_info.inputs[1];
 	}
 	else {
 		/* Print message to stderr, not stdout. */
@@ -388,7 +360,27 @@ static void procargs(int argc, char **argv, char **pfrompat, char **ptopat)
 		exit(1);
 	}
 
+	domatch(frompat, topat);
+	if (!(op & APPEND))
+		checkcollisions();
+	findorder();
+	if (op & (COPY | LINK))
+		nochains();
+	scandeletes(baddel);
+	goonordie();
+	if (!(op & APPEND) && delstyle == ASKDEL)
+		scandeletes(skipdel);
+	doreps();
+
 	cmdline_parser_free(&args_info);
+
+	return(failed ? 2 : nreps == 0 && (paterr || badreps));
+}
+
+static void free_allocs(void)
+{
+	free(dirs);
+	free(handles);
 }
 
 static void domatch(char *cfrom, char *cto)
