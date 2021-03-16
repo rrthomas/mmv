@@ -379,7 +379,19 @@ int main(int argc, char *argv[])
 
 static void free_allocs(void)
 {
+	for (unsigned i = 0; i < ndirs; i++) {
+		for (size_t j = 0; j < dirs[i]->di_nfils; j++) {
+			free(dirs[i]->di_fils[j]->fi_name);
+			free(dirs[i]->di_fils[j]);
+		}
+		free(dirs[i]->di_fils);
+		free(dirs[i]);
+	}
 	free(dirs);
+	for (unsigned i = 0; i < nhandles; i++) {
+		free(handles[i]->h_name);
+		free(handles[i]);
+	}
 	free(handles);
 }
 
