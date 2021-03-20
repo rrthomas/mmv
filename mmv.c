@@ -382,6 +382,11 @@ static void free_allocs(void)
 	for (unsigned i = 0; i < ndirs; i++) {
 		for (size_t j = 0; j < dirs[i]->di_nfils; j++) {
 			free(dirs[i]->di_fils[j]->fi_name);
+			if (dirs[i]->di_fils[j]->fi_rep != NULL &&
+			    dirs[i]->di_fils[j]->fi_rep != MISTAKE) {
+				free(dirs[i]->di_fils[j]->fi_rep);
+				free(dirs[i]->di_fils[j]->fi_rep->r_nto);
+			}
 			free(dirs[i]->di_fils[j]);
 		}
 		free(dirs[i]->di_fils);
@@ -645,15 +650,17 @@ static int dostage(char *lastend, char *pathend, char **start1, size_t *len1, in
 			else {
 				ret = 0;
 				makerep();
-				if (badrep(h, *pf, &hto, &nto, &fdel, &flags))
+				if (badrep(h, *pf, &hto, &nto, &fdel, &flags)) {
 					(*pf)->fi_rep = MISTAKE;
-				else {
+					free(nto);
+				} else {
 					(*pf)->fi_rep = p = (REP *)xmalloc(sizeof(REP));
 					p->r_flags = flags | patflags;
 					p->r_hfrom = h;
 					p->r_ffrom = *pf;
 					p->r_hto = hto;
-					p->r_nto = nto;
+					p->r_nto = xstrdup(nto);
+					free(nto);
 					p->r_fdel = fdel;
 					p->r_first = p;
 					p->r_thendo = NULL;
@@ -794,7 +801,7 @@ static int checkto(HANDLE *hfrom, char *f, HANDLE **phto, char **pnto, FILEINFO 
 		memmove(pathend, fullrep, strlen(fullrep) + 1);
 		memmove(fullrep, hfrom->h_name, hlen);
 		if ((fdel = *pfdel = fsearch(pathend, hfrom->h_di)) != NULL) {
-			*pnto = fdel->fi_name;
+			*pnto = xstrdup(fdel->fi_name);
 			getstat(fullrep, fdel);
 		}
 		else
@@ -820,7 +827,7 @@ static int checkto(HANDLE *hfrom, char *f, HANDLE **phto, char **pnto, FILEINFO 
 		}
 
 		if (*pathend == '\0') {
-			*pnto = f;
+			*pnto = xstrdup(f);
 			if ((size_t)(pathend - fullrep) + strlen(f) >= PATH_MAX) {
 				strcpy(fullrep, TOOLONG);
 				return(-1);
@@ -1335,12 +1342,14 @@ static void checkcollisions(void)
 				prd->rd_p->r_ffrom->fi_name);
 			prd->rd_p->r_flags |= R_SKIP;
 			prd->rd_p->r_ffrom->fi_rep = MISTAKE;
+			free(prd->rd_p->r_ffrom->fi_rep->r_nto);
 			nreps--;
 			badreps++;
 		}
 		else if (mult) {
 			prd->rd_p->r_flags |= R_SKIP;
 			prd->rd_p->r_ffrom->fi_rep = MISTAKE;
+			free(prd->rd_p->r_ffrom->fi_rep->r_nto);
 			nreps--;
 			badreps++;
 			printf(" , %s%s -> %s%s : collision.\n",
@@ -1420,6 +1429,7 @@ static void printchain(REP *p)
 	badreps++;
 	nreps--;
 	p->r_ffrom->fi_rep = MISTAKE;
+	free(p->r_ffrom->fi_rep->r_nto);
 }
 
 static void scandeletes(int (*pkilldel)(REP *))
@@ -1429,6 +1439,7 @@ static void scandeletes(int (*pkilldel)(REP *))
 			while ((*pkilldel)(p)) {
 				nreps--;
 				p->r_ffrom->fi_rep = MISTAKE;
+				free(p->r_ffrom->fi_rep);
 				REP *n;
 				if ((n = p->r_thendo) != NULL) {
 					if (op & MOVE)
