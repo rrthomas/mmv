@@ -290,7 +290,6 @@ int main(int argc, char *argv[])
 	handles = (HANDLE **)xmalloc(handleroom * sizeof(HANDLE *));
 	ndirs = nhandles = 0;
 
-
 	struct gengetopt_args_info args_info;
 	if (cmdline_parser(argc, argv, &args_info) != 0)
 		exit(EXIT_FAILURE);
@@ -506,7 +505,6 @@ static int parsepat(void)
 			}
 		}
 
-
 	if (instage) {
 		if (firstwild[nstages] == NULL)
 			firstwild[nstages] = p;
@@ -570,7 +568,6 @@ static int parsepat(void)
 				return(-1);
 			}
 		}
-
 
 	return(0);
 }
@@ -1704,7 +1701,6 @@ static int copymove(REP *p)
 {
 	return(copy(p->r_ffrom, -1L) || myunlink(pathbuf));
 }
-
 
 
 #define IRWMASK (S_IREAD | S_IWRITE)
