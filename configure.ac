@@ -33,6 +33,15 @@ AC_PROG_LN_S
 AC_GNU_SOURCE
 gl_INIT
 
+dnl libgc (BDW garbage collector)
+PKG_CHECK_MODULES([LIBGC],[bdw-gc >= 7.2])
+AH_BOTTOM([
+#define malloc GC_malloc
+#define realloc GC_realloc
+#define free GC_free
+#define strdup GC_strdup
+])
+
 dnl Extra warnings with GCC
 AC_ARG_ENABLE([gcc-warnings],
   [AS_HELP_STRING([--enable-gcc-warnings],

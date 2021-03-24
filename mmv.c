@@ -51,6 +51,8 @@
 #include <dirent.h>
 #include <limits.h>
 
+#include <gc/gc.h>
+
 #include "progname.h"
 #include "binary-io.h"
 #include "pathmax.h"
@@ -167,7 +169,6 @@ typedef struct {
 } REPDICT;
 
 
-static void free_allocs(void);
 static void domatch(char *cfrom, char *cto);
 static void matchpat(void);
 static int parsepat(void);
@@ -271,7 +272,6 @@ int main(int argc, char *argv[])
 
 	struct stat dstat;
 
-	atexit(free_allocs);
 	if ((home = getenv("HOME")) == NULL || strcmp(home, SLASHSTR) == 0)
 		home = "";
 	if (!stat(".", &dstat)) {
@@ -374,29 +374,6 @@ int main(int argc, char *argv[])
 	cmdline_parser_free(&args_info);
 
 	return(failed ? 2 : nreps == 0 && (paterr || badreps));
-}
-
-static void free_allocs(void)
-{
-	for (unsigned i = 0; i < ndirs; i++) {
-		for (size_t j = 0; j < dirs[i]->di_nfils; j++) {
-			free(dirs[i]->di_fils[j]->fi_name);
-			if (dirs[i]->di_fils[j]->fi_rep != NULL &&
-			    dirs[i]->di_fils[j]->fi_rep != MISTAKE) {
-				free(dirs[i]->di_fils[j]->fi_rep);
-				free(dirs[i]->di_fils[j]->fi_rep->r_nto);
-			}
-			free(dirs[i]->di_fils[j]);
-		}
-		free(dirs[i]->di_fils);
-		free(dirs[i]);
-	}
-	free(dirs);
-	for (unsigned i = 0; i < nhandles; i++) {
-		free(handles[i]->h_name);
-		free(handles[i]);
-	}
-	free(handles);
 }
 
 static void domatch(char *cfrom, char *cto)
@@ -649,7 +626,6 @@ static int dostage(char *lastend, char *pathend, char **start1, size_t *len1, in
 				makerep();
 				if (badrep(h, *pf, &hto, &nto, &fdel, &flags)) {
 					(*pf)->fi_rep = MISTAKE;
-					free(nto);
 				} else {
 					(*pf)->fi_rep = p = (REP *)xmalloc(sizeof(REP));
 					p->r_flags = flags | patflags;
@@ -657,7 +633,6 @@ static int dostage(char *lastend, char *pathend, char **start1, size_t *len1, in
 					p->r_ffrom = *pf;
 					p->r_hto = hto;
 					p->r_nto = xstrdup(nto);
-					free(nto);
 					p->r_fdel = fdel;
 					p->r_first = p;
 					p->r_thendo = NULL;
@@ -1339,14 +1314,12 @@ static void checkcollisions(void)
 				prd->rd_p->r_ffrom->fi_name);
 			prd->rd_p->r_flags |= R_SKIP;
 			prd->rd_p->r_ffrom->fi_rep = MISTAKE;
-			free(prd->rd_p->r_ffrom->fi_rep->r_nto);
 			nreps--;
 			badreps++;
 		}
 		else if (mult) {
 			prd->rd_p->r_flags |= R_SKIP;
 			prd->rd_p->r_ffrom->fi_rep = MISTAKE;
-			free(prd->rd_p->r_ffrom->fi_rep->r_nto);
 			nreps--;
 			badreps++;
 			printf(" , %s%s -> %s%s : collision.\n",
@@ -1354,7 +1327,6 @@ static void checkcollisions(void)
 				prd->rd_p->r_hto->h_name, prd->rd_nto);
 			mult = 0;
 		}
-	free(rd);
 }
 
 static int rdcmp(const void *p1, const void *p2)
@@ -1426,7 +1398,6 @@ static void printchain(REP *p)
 	badreps++;
 	nreps--;
 	p->r_ffrom->fi_rep = MISTAKE;
-	free(p->r_ffrom->fi_rep->r_nto);
 }
 
 static void scandeletes(int (*pkilldel)(REP *))
@@ -1436,7 +1407,6 @@ static void scandeletes(int (*pkilldel)(REP *))
 			while ((*pkilldel)(p)) {
 				nreps--;
 				p->r_ffrom->fi_rep = MISTAKE;
-				free(p->r_ffrom->fi_rep);
 				REP *n;
 				if ((n = p->r_thendo) != NULL) {
 					if (op & MOVE)

@@ -23,9 +23,9 @@ SUBDIRS = lib
 
 dist_doc_DATA = README
 
-LDADD = $(top_builddir)/lib/libgnu.a
+LDADD = $(top_builddir)/lib/libgnu.a $(LIBGC_LIBS)
 AM_CPPFLAGS = -I$(top_srcdir)/lib -I$(top_builddir)/lib
-AM_CFLAGS = $(WARN_CFLAGS)
+AM_CFLAGS = $(WARN_CFLAGS) $(LIBGC_FLAGS)
 
 man_MANS = mmv.1
 
