@@ -76,18 +76,14 @@
 #define NORMMOVE 0x008
 #define XMOVE 0x010
 #define DIRMOVE 0x020
-#define NORMAPPEND 0x040
-#define ZAPPEND 0x080
 #define HARDLINK 0x100
 #define SYMLINK 0x200
 
 #define COPY (NORMCOPY | OVERWRITE)
 #define MOVE (NORMMOVE | XMOVE | DIRMOVE)
-#define APPEND (NORMAPPEND | ZAPPEND)
 #define LINK (HARDLINK | SYMLINK)
 
 static char COPYNAME[] = "mcp";
-static char APPENDNAME[] = "mad";
 static char LINKNAME[] = "mln";
 
 #define ASKDEL 0
@@ -204,7 +200,6 @@ static void nochains(void);
 static void printchain(REP *p);
 static void goonordie(void);
 static void doreps(void);
-static long appendalias(REP *first, REP *p, int *pprintaliased);
 static int movealias(REP *first, REP *p, int *pprintaliased);
 static int snap(REP *first, REP *p);
 static void showdone(REP *fin);
@@ -213,7 +208,7 @@ static void breakrep(int);
 static void breakstat(int signum);
 static void quit(void);
 static int copymove(REP *p);
-static int copy(FILEINFO *f, off_t len);
+static int copy(FILEINFO *f);
 static int myunlink(char *n);
 static bool getreply(void);
 static int getstat(char *full, FILEINFO *f);
@@ -320,8 +315,6 @@ int main(int argc, char *argv[])
 		op = NORMCOPY;
 	else if (args_info.overwrite_given != 0)
 		op = OVERWRITE;
-	else if (args_info.append_given != 0)
-		op = NORMAPPEND;
 	else if (args_info.hardlink_given != 0)
 		op = HARDLINK;
 	else if (args_info.symlink_given != 0)
@@ -329,8 +322,6 @@ int main(int argc, char *argv[])
 	else {
 		if (strcmp(program_name, COPYNAME) == 0)
 			op = NORMCOPY;
-		else if (strcmp(program_name, APPENDNAME) == 0)
-			op = NORMAPPEND;
 		else if (strcmp(program_name, LINKNAME) == 0)
 			op = HARDLINK;
 		else
@@ -360,14 +351,13 @@ int main(int argc, char *argv[])
 	}
 
 	domatch(frompat, topat);
-	if (!(op & APPEND))
-		checkcollisions();
+	checkcollisions();
 	findorder();
 	if (op & (COPY | LINK))
 		nochains();
 	scandeletes(baddel);
 	goonordie();
-	if (!(op & APPEND) && delstyle == ASKDEL)
+	if (delstyle == ASKDEL)
 		scandeletes(skipdel);
 	doreps();
 
@@ -711,7 +701,7 @@ static int badrep(HANDLE *hfrom, FILEINFO *ffrom, HANDLE **phto, char **pnto, FI
 	if ((ffrom->fi_stflags & FI_LINKERR) && !(op & (MOVE | SYMLINK)))
 		printf("%s -> %s : source file is a badly aimed symbolic link.\n",
 			pathbuf, fullrep);
-	else if ((op & (COPY | APPEND)) && access(pathbuf, R_OK))
+	else if ((op & COPY) && access(pathbuf, R_OK))
 		printf("%s -> %s : no read permission for source file.\n",
 			pathbuf, fullrep);
 	else if (
@@ -1430,7 +1420,7 @@ static int baddel(REP *p)
 	char *t = fto->fi_name, *f = p->r_ffrom->fi_name;
 	char *hnf = hfrom->h_name, *hnt = hto->h_name;
 
-	if (delstyle == NODEL && !(p->r_flags & R_DELOK) && !(op & APPEND))
+	if (delstyle == NODEL && !(p->r_flags & R_DELOK))
 		printf("%s%s -> %s%s : old %s%s would have to be %s.\n",
 			hnf, f, hnt, t, hnt, t,
 			(op & OVERWRITE) ? "overwritten" : "deleted");
@@ -1441,12 +1431,12 @@ static int baddel(REP *p)
 		fto->fi_stflags & FI_ISDIR
 	)
 		printf("%s%s -> %s%s : %s%s%s is a directory.\n",
-			hnf, f, hnt, t, (op & APPEND) ? "" : "old ", hnt, t);
-	else if ((fto->fi_stflags & FI_NODEL) && !(op & (APPEND | OVERWRITE)))
+			hnf, f, hnt, t, "old ", hnt, t);
+	else if ((fto->fi_stflags & FI_NODEL) && !(op & OVERWRITE))
 		printf("%s%s -> %s%s : old %s%s lacks delete permission.\n",
 			hnf, f, hnt, t, hnt, t);
 	else if (
-		(op & (APPEND | OVERWRITE)) &&
+		(op & OVERWRITE) &&
 		!fwritable(hnt, fto)
 	) {
 		printf("%s%s -> %s%s : %s%s %s.\n",
@@ -1506,7 +1496,6 @@ static void doreps(void)
 	unsigned k;
 	int printaliased = 0, alias = 0;
 	REP *first, *p;
-	long aliaslen = 0l;
 
 	signal(SIGINT, breakrep);
 
@@ -1521,24 +1510,20 @@ static void doreps(void)
 			strcpy(fullrep, p->r_hto->h_name);
 			strcat(fullrep, p->r_nto);
 			if (!noex && (p->r_flags & R_ISCYCLE)) {
-				if (op & APPEND)
-					aliaslen = appendalias(first, p, &printaliased);
-				else
-					alias = movealias(first, p, &printaliased);
+				alias = movealias(first, p, &printaliased);
 			}
 			strcpy(pathbuf, p->r_hfrom->h_name);
 			fstart = pathbuf + strlen(pathbuf);
-			if ((p->r_flags & R_ISALIASED) && !(op & APPEND))
+			if (p->r_flags & R_ISALIASED)
 				sprintf(fstart, "%s%03d", TEMP, alias);
 			else
 				strcpy(fstart, p->r_ffrom->fi_name);
 			if (!noex) {
-				if (p->r_fdel != NULL && !(op & (APPEND | OVERWRITE)))
+				if (p->r_fdel != NULL && !(op & OVERWRITE))
 					myunlink(fullrep);
 				if (
-					(op & (COPY | APPEND)) ?
-						copy(p->r_ffrom,
-							p->r_flags & R_ISALIASED ? aliaslen : -1L) :
+					(op & COPY) ?
+						copy(p->r_ffrom) :
 					(op & HARDLINK) ?
 						link(pathbuf, fullrep) :
 					(op & SYMLINK) ?
@@ -1562,7 +1547,7 @@ static void doreps(void)
 					p->r_flags & R_ISALIASED ? '=' : '-',
 					p->r_flags & R_ISCYCLE ? '^' : '>',
 					fullrep,
-					(p->r_fdel != NULL && !(op & APPEND)) ? " (*)" : "",
+					(p->r_fdel != NULL) ? " (*)" : "",
 					noex ? "" : " : done");
 			}
 		}
@@ -1573,22 +1558,6 @@ static void doreps(void)
 			k, nreps);
 	if (k == 0)
 		fprintf(stderr, "Nothing done.\n");
-}
-
-static long appendalias(REP *first, REP *p, int *pprintaliased)
-{
-	long ret = 0l;
-
-	struct stat fstat;
-
-	if (stat(fullrep, &fstat)) {
-		fprintf(stderr, "append cycle stat on %s has failed.\n", fullrep);
-		*pprintaliased = snap(first, p);
-	}
-	else
-		ret = fstat.st_size;
-
-	return(ret);
 }
 
 static int movealias(REP *first, REP *p, int *pprintaliased)
@@ -1639,7 +1608,7 @@ static void showdone(REP *fin)
 				p->r_flags & R_ISALIASED ? '=' : '-',
 				p->r_flags & R_ISCYCLE ? '^' : '>',
 				p->r_hto->h_name, p->r_nto,
-				(p->r_fdel != NULL && !(op & APPEND)) ? " (*)" : "");
+				(p->r_fdel != NULL) ? " (*)" : "");
 		}
 }
 
@@ -1669,14 +1638,14 @@ static void quit(void)
 
 static int copymove(REP *p)
 {
-	return(copy(p->r_ffrom, -1L) || myunlink(pathbuf));
+	return(copy(p->r_ffrom) || myunlink(pathbuf));
 }
 
 
 #define IRWMASK (S_IREAD | S_IWRITE)
 #define RWMASK (IRWMASK | (IRWMASK >> 3) | (IRWMASK >> 6))
 
-static int copy(FILEINFO *ff, off_t len)
+static int copy(FILEINFO *ff)
 {
 	char buf[BUFSIZ];
 	int f, t, mode;
@@ -1687,36 +1656,19 @@ static int copy(FILEINFO *ff, off_t len)
 
 	if ((f = open(pathbuf, O_RDONLY | O_BINARY, 0)) < 0)
 		return(-1);
-	perm =
-		(op & (APPEND | OVERWRITE)) ?
-			(~oldumask & RWMASK) | (ff->fi_mode & (mode_t)~RWMASK) :
-			ff->fi_mode
-		;
+	perm = (op & OVERWRITE) ?
+		(~oldumask & RWMASK) | (ff->fi_mode & (mode_t)~RWMASK) :
+		ff->fi_mode;
 
-	mode = O_CREAT | (op & APPEND ? 0 : O_TRUNC) |
-		O_WRONLY
-		;
+	mode = O_CREAT | O_TRUNC | O_WRONLY;
 	t = open(fullrep, mode, perm);
 	if (t < 0) {
 		close(f);
 		return(-1);
 	}
-	if (op & APPEND)
-		lseek(t, (off_t)0, SEEK_END);
-	if ((op & APPEND) && len != (off_t)-1) {
-		while (
-			len != 0 &&
-			(k = read(f, buf, (len > BUFSIZ) ? BUFSIZ : (size_t)len)) > 0 &&
-			write(t, buf, (size_t)k) == k
-		)
-			len -= k;
-		if (len == 0)
-			k = 0;
-	}
-	else
-		while ((k = read(f, buf, BUFSIZ)) > 0 && write(t, buf, (size_t)k) == k)
-			;
-	if (!(op & (APPEND | OVERWRITE)))
+	while ((k = read(f, buf, BUFSIZ)) > 0 && write(t, buf, (size_t)k) == k)
+		;
+	if (!(op & OVERWRITE))
 		if (
 			stat(pathbuf, &fstat) ||
 			(
@@ -1731,8 +1683,7 @@ static int copy(FILEINFO *ff, off_t len)
 	close(f);
 	close(t);
 	if (k != 0) {
-		if (!(op & APPEND))
-			unlink(fullrep);
+		unlink(fullrep);
 		return(-1);
 	}
 	return(0);

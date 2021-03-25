@@ -1,10 +1,10 @@
 [NAME]
-mmv - move/copy/append/link multiple files by wildcard patterns
+mmv - move/copy/link multiple files by wildcard patterns
 
 [>DESCRIPTION]
 .PP
 .I Mmv
-moves (or copies, appends, or links, as specified)
+moves (or copies or links, as specified)
 each source file matching a
 .I from
 pattern to the target name specified by the
@@ -40,7 +40,7 @@ The Task Options
 .PP
 Whether
 .I mmv
-moves, copies, appends, or links
+moves, copies, or links
 is governed by the first set of options given
 above.
 If none of these are specified,
@@ -53,8 +53,6 @@ was invoked:
         mmv			\-\-copydel
 .br
         mcp			\-\-copy
-.br
-        mad			\-\-append
 .br
         mln			\-\-hardlink
 .PP
@@ -95,16 +93,6 @@ set according to
 .IR umask (1),
 and the execute permission bits copied from the source file.
 In either case, the file modification time is set to the current time.
-.TP
-\fB\-\-append\fR:
-append contents of source file to target name.
-Target file modification time is set to the current time.
-If target file does not exist,
-it is created with permission bits
-set as under \-\-overwrite.
-Unlike all other options, \-\-append allows multiple source files to have the
-same target name, e.g. "mmv \-a \\*.c big" will append all ".c" files to "big".
-Chains and cycles are also allowed, so "mmv \-a f f" will double up "f".
 .TP
 \fB\-\-hardlink\fR:
 link target name to source file.
@@ -285,11 +273,10 @@ e.g. "mmv a a".
 .I Mmv
 detects chains and cycles regardless of the order in which
 their constituent actions are actually given.
-Where allowed, i.e. in moving, renaming, and appending files,
+Where allowed, i.e. in moving and renaming files,
 chains and cycles are handled gracefully, by performing them in the proper
 order.
-Cycles are broken by first renaming one of the files to a temporary name
-(or just remembering its original size when doing appends).
+Cycles are broken by first renaming one of the files to a temporary name.
 
 .ce
 Collisions and Deletions
