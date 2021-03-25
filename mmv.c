@@ -9,9 +9,7 @@
 
 	Maintainer: Reuben Thomas <rrt@sc3d.org>
 
-	The original author of mmv was Vladimir Lanin <lanin@csd2.nyu.edu>, of
-	330 Wadsworth Ave, Apt 6F,
-	New York, NY 10040
+	The original author of mmv was Vladimir Lanin <lanin@csd2.nyu.edu>.
 
 	Many thanks to those who have to contributed to the design
 	and/or coding of this program:
