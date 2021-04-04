@@ -1497,9 +1497,8 @@ static void doreps(void)
 			}
 			strcpy(fullrep, p->r_hto->h_name);
 			strcat(fullrep, p->r_nto);
-			if (!noex && (p->r_flags & R_ISCYCLE)) {
+			if (!noex && (p->r_flags & R_ISCYCLE))
 				alias = movealias(first, p, &printaliased);
-			}
 			strcpy(pathbuf, p->r_hfrom->h_name);
 			fstart = pathbuf + strlen(pathbuf);
 			if (p->r_flags & R_ISALIASED)
