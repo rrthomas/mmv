@@ -909,21 +909,11 @@ static int fwritable(char *hname, FILEINFO *f)
 
 static FILEINFO *fsearch(char *s, DIRINFO *d)
 {
-	FILEINFO **fils = d->di_fils;
-	size_t nfils = d->di_nfils;
-
-	for (size_t first = 0, last = nfils - 1;;) {
-		if (last < first)
-			return(NULL);
-		size_t k = (first + last) >> 1;
-		int res = strcmp(s, fils[k]->fi_name);
-		if (res == 0)
-			return(fils[k]);
-		if (res < 0)
-			last = k - 1;
-		else
-			first = k + 1;
-	}
+	FILEINFO *f = (FILEINFO *)xmalloc(sizeof(FILEINFO));
+	f->fi_name = s;
+	FILEINFO *res = bsearch(&f, d->di_fils, d->di_nfils, sizeof(FILEINFO *), fcmp);
+	free(f);
+	return res;
 }
 
 static size_t ffirst(char *s, size_t n, DIRINFO *d)
@@ -936,7 +926,7 @@ static size_t ffirst(char *s, size_t n, DIRINFO *d)
 	size_t first = 0;
 	size_t last = nfils - 1;
 	for(;;) {
-		size_t k = (first + last) >> 1;
+		size_t k = (first + last) / 2;
 		int res = strncmp(s, fils[k]->fi_name, n);
 		if (first == last)
 			return(res == 0 ? k : nfils);
