@@ -247,8 +247,7 @@ To strip any character (e.g. '*', '?', or '#')
 of its special meaning to
 .IR mmv ,
 as when the actual replacement name must contain the character '#',
-precede the special character with a
-\'\\'
+precede the special character with a '\\'
 (and enclose the argument in quotes because of the shell).
 This also works to terminate a wildcard index
 when it has to be followed by a digit in the filename, e.g. "a#1\\1".
