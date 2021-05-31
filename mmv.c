@@ -216,9 +216,9 @@ static int fwritable(char *hname, FILEINFO *f);
 static int op, badstyle, delstyle, verbose, noex, matchall;
 static int patflags;
 
-static unsigned ndirs = 0, dirroom;
+static size_t ndirs = 0, dirroom;
 static DIRINFO **dirs;
-static unsigned nhandles = 0, handleroom;
+static size_t nhandles = 0, handleroom;
 static HANDLE **handles;
 static char badhandle_name[] = "\200";
 static HANDLE badhandle = {badhandle_name, NULL, 0};
@@ -1008,8 +1008,7 @@ static void takedir(const char *p, DIRINFO *di, int sticky)
 	size_t cnt = 0;
 	while ((dp = readdir(dirp)) != NULL) {
 		if (cnt == room) {
-			room *= 2;
-			di->di_fils = (FILEINFO **)xrealloc(di->di_fils, room * sizeof(FILEINFO *));
+			di->di_fils = (FILEINFO **)x2nrealloc(di->di_fils, &room, sizeof(FILEINFO *));
 			fils = di->di_fils + cnt;
 		}
 		*fils = f = (FILEINFO *)xmalloc(sizeof(FILEINFO));
@@ -1034,12 +1033,10 @@ static int fcmp(const void *pf1, const void *pf2)
 
 static HANDLE *hadd(char *n)
 {
-	if (nhandles == handleroom) {
-		handleroom *= 2;
-		handles = (HANDLE **)xrealloc(handles, handleroom * sizeof(HANDLE *));
-	}
+	if (nhandles == handleroom)
+		handles = (HANDLE **)x2nrealloc(handles, &handleroom, sizeof(HANDLE *));
 	HANDLE *h = (HANDLE *)xmalloc(sizeof(HANDLE));
-	h->h_name = (char *)xmalloc(strlen(n) + 1);
+	h->h_name = xcharalloc(strlen(n) + 1);
 	strcpy(h->h_name, n);
 	h->h_di = NULL;
 	handles[nhandles++] = h;
@@ -1065,10 +1062,8 @@ static int hsearch(char *n, int which, HANDLE **pret)
 
 static DIRINFO *dadd(dev_t v, ino_t d)
 {
-	if (ndirs == dirroom) {
-		dirroom *= 2;
-		dirs = (DIRINFO **)xrealloc(dirs, dirroom * sizeof(DIRINFO *));
-	}
+	if (ndirs == dirroom)
+		dirs = (DIRINFO **)x2nrealloc(dirs, &dirroom, sizeof(DIRINFO *));
 	DIRINFO *di = (DIRINFO *)xmalloc(sizeof(DIRINFO));
 	di->di_vid = v;
 	di->di_did = d;
