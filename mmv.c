@@ -911,9 +911,9 @@ static FILEINFO *fsearch(char *s, DIRINFO *d)
 {
 	FILEINFO *f = (FILEINFO *)xmalloc(sizeof(FILEINFO));
 	f->fi_name = s;
-	FILEINFO *res = bsearch(&f, d->di_fils, d->di_nfils, sizeof(FILEINFO *), fcmp);
+	FILEINFO **res = bsearch(&f, d->di_fils, d->di_nfils, sizeof(FILEINFO *), fcmp);
 	free(f);
-	return res;
+	return res != NULL ? *res : NULL;
 }
 
 static size_t ffirst(char *s, size_t n, DIRINFO *d)
