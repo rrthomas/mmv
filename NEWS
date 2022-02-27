@@ -1,6 +1,6 @@
 Copyright (c) 1989 Vladimir Lanin
 
-This is mmv, a program to move/copy/append/link multiple files
+This is mmv, a program to move/copy/link multiple files
 according to a set of wildcard patterns. This multiple action is
 performed safely, i.e. without any unexpected deletion of files due to
 collisions of target names with existing filenames or with other
@@ -21,7 +21,7 @@ Improvements over mmv's predecessor, ren:
 
 . the ';' wildcard finds files at any level in the tree
 
-. can copy, append, or link instead of moving/renaming
+. can copy or link instead of moving/renaming
 
 . reads multiple patterns from standard input (or one from command line)
 
