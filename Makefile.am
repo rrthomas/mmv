@@ -21,7 +21,7 @@ ACLOCAL_AMFLAGS=-I m4
 
 SUBDIRS = lib
 
-dist_doc_DATA = README
+dist_doc_DATA = README.md
 
 LDADD = $(top_builddir)/lib/libgnu.a $(LIBGC_LIBS)
 AM_CPPFLAGS = -I$(top_srcdir)/lib -I$(top_builddir)/lib
