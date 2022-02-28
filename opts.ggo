@@ -10,12 +10,11 @@ FROM pattern wildcard [lowercased|uppercased].
 
 Patterns should be quoted on the command line."
 
-versiontext "Copyright (c) 2021 Reuben Thomas <rrt@sc3d.org>
+versiontext "Copyright (c) 2022 Reuben Thomas <rrt@sc3d.org>
 Copyright (c) 1990 Vladimir Lanin.
-mmv comes with ABSOLUTELY NO WARRANTY.
-You may redistribute copies of mmv
-under the terms of the GNU General Public License.
-For more information, see <https://gnu.org/licenses/gpl.html>"
+Licence GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law."
 
 option "hidden"          h "treat dot files normally"                                     flag off
 
