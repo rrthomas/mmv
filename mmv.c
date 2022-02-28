@@ -63,6 +63,10 @@
 #include "cmdline.h"
 
 
+#ifndef PATH_MAX
+#define PATH_MAX (pathconf("/", _PC_PATH_MAX))
+#endif
+
 #define ESC '\\'
 #define SLASH '/'
 
