@@ -78,8 +78,8 @@ else
 fi
 AC_SUBST([ISYSTEM])
 
-dnl help2man
-AC_PATH_PROG([HELP2MAN], [help2man], [AC_MSG_ERROR([help2man not found in PATH])])
+dnl help2man; if not found, use touch
+AC_PATH_PROG([HELP2MAN], [help2man], [touch])
 
 dnl Create files
 AC_CONFIG_HEADER([config.h])
