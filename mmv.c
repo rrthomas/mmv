@@ -456,7 +456,7 @@ static int parsepat(void)
 					printf("%s -> %s : missing ].\n", from, to);
 					return(-1);
 				case SLASH:
-					printf("%s -> %s : '%c' can not be part of [].\n",
+					printf("%s -> %s : '%c' cannot be part of [].\n",
 						from, to, c);
 					return(-1);
 				case ESC:
@@ -1678,7 +1678,7 @@ static int copy(FILEINFO *ff)
 static int myunlink(char *n)
 {
 	if (unlink(n)) {
-		fprintf(stderr, "Strange, can not unlink %s.\n", n);
+		fprintf(stderr, "Strange, cannot unlink %s.\n", n);
 		return(-1);
 	}
 	return(0);
@@ -1688,7 +1688,7 @@ static bool getreply(void)
 {
 	static FILE *tty = NULL;
 	if (tty == NULL && (tty = fopen("/dev/tty", "r")) == NULL) {
-		fprintf(stderr, "Can not open terminal to get reply.\n");
+		fprintf(stderr, "Cannot open terminal to get reply.\n");
 		quit();
 	}
 
@@ -1696,7 +1696,7 @@ static bool getreply(void)
 	   regex, and rpmatch.  */
 	int c = getchar();
 	if (c == EOF) {
-		fprintf(stderr, "Can not get reply.\n");
+		fprintf(stderr, "Cannot get reply.\n");
 		quit();
 	}
 	bool yes = (c == 'y' || c == 'Y');

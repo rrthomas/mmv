@@ -420,7 +420,7 @@ If the search pattern is not quoted,
 the shell expands the wildcards.
 .I Mmv
 then (usually) gives some error message,
-but can not determine that the lack of quotes is the cause.
+but cannot determine that the lack of quotes is the cause.
 .PP
 To avoid difficulties in semantics and error checking,
 .I mmv
