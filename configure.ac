@@ -79,7 +79,8 @@ fi
 AC_SUBST([ISYSTEM])
 
 dnl help2man; if not found, use touch
-AC_PATH_PROG([HELP2MAN], [help2man], [touch])
+dnl Set a value even if not found, so that an invocation via build-aux/missing works
+AC_PATH_PROG([HELP2MAN], [help2man], [help2man])
 
 dnl Create files
 AC_CONFIG_HEADER([config.h])

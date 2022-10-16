@@ -27,7 +27,7 @@ LDADD = $(top_builddir)/lib/libgnu.a $(LIBGC_LIBS)
 AM_CPPFLAGS = -I$(top_srcdir)/lib -I$(top_builddir)/lib
 AM_CFLAGS = $(WARN_CFLAGS) $(LIBGC_FLAGS)
 
-man_MANS = mmv.1
+dist_man_MANS = mmv.1
 
 bin_PROGRAMS = mmv$(EXEEXT)
 mmv_SOURCES = mmv.c cmdline.c cmdline.h
@@ -41,17 +41,13 @@ EXTRA_DIST = $(man_MANS) $(EXTRA_SRCS) m4/gnulib-cache.m4 mmv-include.man build-
 
 DISTCLEANFILES = $(man_MANS)
 
-mmv.1: $(builddir)/mmv$(EXEEXT) build-aux/mmv-help2man-wrapper mmv-include.man
+mmv.1: $(srcdir)/mmv.c build-aux/mmv-help2man-wrapper mmv-include.man
 ## Exit gracefully if $@ is not writeable, such as during distcheck!
-	$(AM_V_GEN)if test "$(HELP2MAN)" == "touch"; then \
-	    touch $@; \
-	else \
-	    if ( touch $@.w && rm -f $@.w; ) >/dev/null 2>&1; then \
-	      $(top_srcdir)/build-aux/missing --run $(HELP2MAN) --no-info \
+	$(AM_V_GEN)if ( touch $@.w && rm -f $@.w; ) >/dev/null 2>&1; then \
+	  $(top_srcdir)/build-aux/missing --run $(HELP2MAN) --no-info \
 		--no-discard-stderr \
 		--include=$(srcdir)/mmv-include.man \
 		--output=$@ $(srcdir)/build-aux/mmv-help2man-wrapper; \
-	    fi \
 	fi
 
 mmv.o: cmdline.h
