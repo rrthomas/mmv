@@ -17,20 +17,20 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, see <https://www.gnu.org/licenses/>.
 
-AC_PREREQ([2.64])
+AC_PREREQ([2.71])
 
 dnl Initialise autoconf and automake
-AC_INIT([mmv], [2.3.1], [rrt@sc3d.org],, [https://github.com/rrthomas/mmv])
+AC_INIT([mmv],[2.3.1],[rrt@sc3d.org],[],[https://github.com/rrthomas/mmv])
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([-Wall])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 dnl Check for standard build environment
-AC_PROG_CC_C99
+AC_PROG_CC
 gl_EARLY
 AM_PROG_AR
 AC_PROG_LN_S
-AC_GNU_SOURCE
+AC_USE_SYSTEM_EXTENSIONS
 gl_INIT
 
 dnl libgc (BDW garbage collector)
@@ -83,8 +83,9 @@ dnl Set a value even if not found, so that an invocation via build-aux/missing w
 AC_PATH_PROG([HELP2MAN], [help2man], [help2man])
 
 dnl Create files
-AC_CONFIG_HEADER([config.h])
-AC_OUTPUT([
+AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_FILES([
 	Makefile
 	lib/Makefile
 ])
+AC_OUTPUT
