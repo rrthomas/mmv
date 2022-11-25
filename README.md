@@ -46,7 +46,7 @@ To build from a Git repository, first run
 ./bootstrap
 ```
 
-Then see "Building from source" above.
+Then see "Building from a release tarball" above.
 
 
 ## Use
