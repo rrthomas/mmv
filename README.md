@@ -26,14 +26,14 @@ Reports on compatibility, whether positive or negative, are welcomed.
 ### Building from a release tarball
 
 A C compiler and libgc are required to build from source. For building from
-git, see below.
+Git, see below.
 
 To build mmv from a release tarball, run
 
 `./configure && make && make check`
 
 
-### Building mmv from git
+### Building from Git
 
 The GNU autotools are required: automake, autoconf and libtool.
 [Gnulib](https://www.gnu.org/software/gnulib/) is also used, with a
