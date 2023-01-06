@@ -78,7 +78,7 @@ else
 fi
 AC_SUBST([ISYSTEM])
 
-dnl help2man; if not found, use touch
+dnl help2man
 dnl Set a value even if not found, so that an invocation via build-aux/missing works
 AC_PATH_PROG([HELP2MAN], [help2man], [help2man])
 
