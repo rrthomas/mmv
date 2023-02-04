@@ -34,7 +34,7 @@ AC_USE_SYSTEM_EXTENSIONS
 gl_INIT
 
 dnl libgc (BDW garbage collector)
-PKG_CHECK_MODULES([LIBGC],[bdw-gc >= 7.2])
+PKG_CHECK_MODULES([BDW_GC],[bdw-gc >= 7.2])
 AH_BOTTOM([
 #define malloc GC_malloc
 #define realloc GC_realloc
