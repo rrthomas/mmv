@@ -917,7 +917,7 @@ static FILEINFO *fsearch(char *s, DIRINFO *d)
 	return res != NULL ? *res : NULL;
 }
 
-static size_t ffirst(char *s, size_t n, DIRINFO *d)
+static _GL_ATTRIBUTE_PURE size_t ffirst(char *s, size_t n, DIRINFO *d)
 {
 	FILEINFO **fils = d->di_fils;
 	size_t nfils = d->di_nfils;
@@ -1069,7 +1069,7 @@ static DIRINFO *dadd(dev_t v, ino_t d)
 	return(di);
 }
 
-static DIRINFO *dsearch(dev_t v, ino_t d)
+static _GL_ATTRIBUTE_PURE DIRINFO *dsearch(dev_t v, ino_t d)
 {
 	for (unsigned i = 0; i < ndirs; i++)
 		if (v == dirs[i]->di_vid && d == dirs[i]->di_did)
