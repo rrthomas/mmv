@@ -957,8 +957,7 @@ static HANDLE *checkdir(char *p, char *pathend)
 			direrr = h->h_err;
 			return(NULL);
 		}
-		else
-			return(h);
+		return(h);
 	}
 
 	if (*p == '\0')
