@@ -1619,7 +1619,7 @@ static int copymove(REP *p)
 }
 
 
-#define IRWMASK (S_IREAD | S_IWRITE)
+#define IRWMASK (S_IRUSR | S_IWUSR)
 #define RWMASK (IRWMASK | (IRWMASK >> 3) | (IRWMASK >> 6))
 
 static int copy(FILEINFO *ff)
