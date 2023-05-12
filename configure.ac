@@ -1,6 +1,6 @@
 # configure.ac for mmv
 #
-# Copyright (c) 2021 Reuben Thomas <rrt@sc3d.org>
+# Copyright (c) 2021-2023 Reuben Thomas <rrt@sc3d.org>
 #
 # This file is part of Paper.
 #
@@ -20,7 +20,7 @@
 AC_PREREQ([2.71])
 
 dnl Initialise autoconf and automake
-AC_INIT([mmv],[2.3.1],[rrt@sc3d.org],[],[https://github.com/rrthomas/mmv])
+AC_INIT([mmv],[2.4],[rrt@sc3d.org],[],[https://github.com/rrthomas/mmv])
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([-Wall])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
