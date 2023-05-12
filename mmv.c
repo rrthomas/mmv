@@ -37,6 +37,7 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <errno.h>
 #include <ctype.h>
 #include <string.h>
 #include <signal.h>
@@ -54,7 +55,6 @@
 #include "progname.h"
 #include "binary-io.h"
 #include "pathmax.h"
-#include "execute.h"
 #include "xalloc.h"
 #ifndef _WIN32
 #include "ignore-value.h"
@@ -954,12 +954,86 @@ static _GL_ATTRIBUTE_PURE size_t ffirst(char *s, size_t n, DIRINFO *d)
 #define IRWXMASK (S_IRUSR | S_IWUSR | S_IXUSR)
 #define RWXMASK (IRWXMASK | (IRWXMASK >> 3) | (IRWXMASK >> 6))
 
-static int mkdirp(char const *dir) {
-#define MODE_LENGTH 16
-	char mode[MODE_LENGTH + 1];
-	snprintf(mode, MODE_LENGTH, "%.4o", ~oldumask & RWXMASK);
-	const char * const args[] = {"mkdir", "-p", "-m", mode, dir, NULL};
-	return execute("mkdir", "mkdir", args, NULL, 0, 1, 1, 1, 1, 0, NULL);
+/* This function adapted from bash's mkdir.c
+   Make all the directories leading up to PATH, then create PATH.  Note that
+   this changes the process's umask; make sure that all paths leading to a
+   return reset it to OLDUMASK */
+static int make_path(char *path)
+{
+	struct stat sb;
+	char *p, *npath;
+	int tail;
+
+	/* If we don't have to do any work, don't do any work. */
+	if (stat(path, &sb) == 0) {
+		if (S_ISDIR(sb.st_mode) == 0) {
+			if (verbose)
+				printf("`%s': file exists but is not a directory", path);
+			return(1);
+		}
+
+		return(0);
+	}
+
+	npath = xstrdup(path);	/* So we can write to it. */
+
+	/* Check whether or not we need to do anything with intermediate dirs. */
+
+	/* Skip leading slashes. */
+	p = npath;
+	while (*p == '/')
+		p++;
+
+	tail = 0;
+	while (tail == 0) {
+		if (*p == '\0')
+			tail = 1;
+		else
+			p = strchr(p, '/');
+		if (p)
+			*p = '\0';
+		else
+			tail = 1;
+		if (mkdir(npath, ~oldumask & RWXMASK) < 0) {
+			/* "Each dir operand that names an existing directory shall be
+			   ignored without error." */
+			if (errno == EEXIST || errno == EISDIR) {
+				int e = errno;
+				int fail = 0;
+
+				if (stat(npath, &sb) != 0) {
+					fail = 1;
+					if (verbose)
+						printf("cannot create directory `%s': %s", npath, strerror(e));
+				}
+				else if (e == EEXIST && S_ISDIR(sb.st_mode) == 0) {
+					fail = 1;
+					if (verbose)
+						printf("`%s': file exists but is not a directory", npath);
+				}
+				if (fail) {
+					umask(oldumask);
+					free(npath);
+					return(1);
+				}
+			}
+			else {
+				if (verbose)
+					printf("cannot create directory `%s': %s", npath, strerror(errno));
+				umask(oldumask);
+				free(npath);
+				return(1);
+			}
+		}
+		if (tail == 0)
+			*p++ = '/';	/* restore slash */
+		while (p && *p == '/')	/* skip consecutive slashes or trailing slash */
+			p++;
+	}
+
+	umask(oldumask);
+	free(npath);
+	return(0);
 }
 
 static HANDLE *checkdir(char *p, char *pathend, int makedirs)
@@ -1510,7 +1584,7 @@ static void doreps(void)
 			if (mkdirs && p->r_hto->h_di == &nonexistent_dir) {
 				if (verbose)
 					printf("creating directory %s\n", p->r_hto->h_name);
-				int res = mkdirp(p->r_hto->h_name);
+				int res = make_path(p->r_hto->h_name);
 				if (res != 0)
 					fprintf(stderr, "Strange, couldn't create directory %s.\n",  p->r_hto->h_name);
 				p->r_hto->h_di = &created_dir;
