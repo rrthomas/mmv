@@ -54,6 +54,7 @@
 #include "progname.h"
 #include "binary-io.h"
 #include "pathmax.h"
+#include "execute.h"
 #include "xalloc.h"
 #ifndef _WIN32
 #include "ignore-value.h"
@@ -131,6 +132,13 @@ typedef struct {
 	char di_flags;
 } DIRINFO;
 
+static DIRINFO nonexistent_dir = {
+	(dev_t)-1, (dev_t)-1, 0, NULL, (DI_KNOWWRITE | DI_CANWRITE)
+};
+static DIRINFO created_dir = {
+	(dev_t)-1, (dev_t)-1, 0, NULL, (DI_KNOWWRITE | DI_CANWRITE)
+};
+
 #define H_NODIR 1
 #define H_NOREADDIR 2
 
@@ -183,7 +191,7 @@ static char *getpath(char *tpath);
 static int badname(char *s);
 static FILEINFO *fsearch(char *s, DIRINFO *d);
 static size_t ffirst(char *s, size_t n, DIRINFO *d);
-static HANDLE *checkdir(char *p, char *pathend);
+static HANDLE *checkdir(char *p, char *pathend, int makedirs);
 static void takedir(const char *p, DIRINFO *di, int sticky);
 static int fcmp(const void *pf1, const void *pf2);
 static HANDLE *hadd(char *n);
@@ -217,7 +225,7 @@ static int getstat(char *full, FILEINFO *f);
 static int dwritable(HANDLE *h);
 static int fwritable(char *hname, FILEINFO *f);
 
-static int op, badstyle, delstyle, verbose, noex, matchall;
+static int op, badstyle, delstyle, verbose, noex, matchall, mkdirs;
 static int patflags;
 
 static size_t ndirs = 0, dirroom;
@@ -283,6 +291,7 @@ int main(int argc, char *argv[])
 	dirs = (DIRINFO **)xmalloc(dirroom * sizeof(DIRINFO *));
 	handles = (HANDLE **)xmalloc(handleroom * sizeof(HANDLE *));
 	ndirs = nhandles = 0;
+	nonexistent_dir.di_fils = (FILEINFO **)xmalloc(sizeof(FILEINFO *));
 
 	struct gengetopt_args_info args_info;
 	if (cmdline_parser(argc, argv, &args_info) != 0)
@@ -291,6 +300,7 @@ int main(int argc, char *argv[])
 	verbose = args_info.verbose_given != 0;
 	noex = args_info.dryrun_given != 0;
 	matchall = args_info.hidden_given != 0;
+	mkdirs = args_info.makedirs_given != 0;
 
 	delstyle = ASKDEL;
 	if (args_info.force_given != 0)
@@ -563,7 +573,7 @@ static int dostage(char *lastend, char *pathend, char **start1, size_t *len1, in
 		lastend = stagel[stage];
 	}
 
-	if ((h = checkdir(pathbuf, pathend)) == NULL) {
+	if ((h = checkdir(pathbuf, pathend, 0)) == NULL) {
 		if (stage == 0 || direrr == H_NOREADDIR) {
 			printf("%s -> %s : directory %s does not %s.\n",
 				from, to, pathbuf, direrr == H_NOREADDIR ?
@@ -771,7 +781,7 @@ static int checkto(HANDLE *hfrom, char *f, HANDLE **phto, char **pnto, FILEINFO 
 	else {
 		pathend = getpath(tpath);
 		hlen = (size_t)(pathend - fullrep);
-		*phto = checkdir(tpath, tpath + hlen);
+		*phto = checkdir(tpath, tpath + hlen, mkdirs);
 		if (
 			*phto != NULL &&
 			*pathend != '\0' &&
@@ -784,7 +794,7 @@ static int checkto(HANDLE *hfrom, char *f, HANDLE **phto, char **pnto, FILEINFO 
 			strcpy(tpath + hlen, pathend);
 			pathend += tlen;
 			hlen += tlen;
-			*phto = checkdir(tpath, tpath + hlen);
+			*phto = checkdir(tpath, tpath + hlen, mkdirs);
 		}
 
 		if (*pathend == '\0') {
@@ -941,7 +951,18 @@ static _GL_ATTRIBUTE_PURE size_t ffirst(char *s, size_t n, DIRINFO *d)
 
 /* checkdir, takedir */
 
-static HANDLE *checkdir(char *p, char *pathend)
+#define IRWXMASK (S_IRUSR | S_IWUSR | S_IXUSR)
+#define RWXMASK (IRWXMASK | (IRWXMASK >> 3) | (IRWXMASK >> 6))
+
+static int mkdirp(char const *dir) {
+#define MODE_LENGTH 16
+	char mode[MODE_LENGTH + 1];
+	snprintf(mode, MODE_LENGTH, "%.4o", ~oldumask & RWXMASK);
+	const char * const args[] = {"mkdir", "-p", "-m", mode, dir, NULL};
+	return execute("mkdir", "mkdir", args, NULL, 0, 1, 1, 1, 1, 0, NULL);
+}
+
+static HANDLE *checkdir(char *p, char *pathend, int makedirs)
 {
 	struct stat dstat;
 	ino_t d;
@@ -970,9 +991,12 @@ static HANDLE *checkdir(char *p, char *pathend)
 		myp = p;
 	}
 
-	if (stat(myp, &dstat) || (dstat.st_mode & S_IFMT) != S_IFDIR)
-		direrr = h->h_err = H_NODIR;
-	else if (access(myp, R_OK | X_OK))
+	if (stat(myp, &dstat) || (dstat.st_mode & S_IFMT) != S_IFDIR) {
+		if (makedirs)
+			di = &nonexistent_dir;
+		else
+			direrr = h->h_err = H_NODIR;
+	} else if (access(myp, R_OK | X_OK))
 		direrr = h->h_err = H_NOREADDIR;
 	else {
 		direrr = 0;
@@ -1483,6 +1507,14 @@ static void doreps(void)
 				gotsig = 0;
 			}
 			strcpy(fullrep, p->r_hto->h_name);
+			if (mkdirs && p->r_hto->h_di == &nonexistent_dir) {
+				if (verbose)
+					printf("creating directory %s\n", p->r_hto->h_name);
+				int res = mkdirp(p->r_hto->h_name);
+				if (res != 0)
+					fprintf(stderr, "Strange, couldn't create directory %s.\n",  p->r_hto->h_name);
+				p->r_hto->h_di = &created_dir;
+			}
 			strcat(fullrep, p->r_nto);
 			if (!noex && (p->r_flags & R_ISCYCLE))
 				alias = movealias(first, p, &printaliased);

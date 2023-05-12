@@ -17,6 +17,7 @@ This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law."
 
 option "hidden"          h "treat dot files normally"                                     flag off
+option "makedirs"        D "create non-existent directories"                         flag off
 
 defgroup "mode" groupdesc="Mode of operation"
 groupoption "move"       m "move source file to target name"                              group="mode"
