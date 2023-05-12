@@ -1211,10 +1211,7 @@ static void makerep(void)
 				c = *(++pat);
 			if (l == PATH_MAX)
 				goto toolong;
-			if (
-				(
-					c == SLASH
-				) &&
+			if (c == SLASH &&
 				(
 					p == fullrep ? pat != to :
 					(
