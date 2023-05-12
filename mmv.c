@@ -1,11 +1,11 @@
 /*
 	mmv
 
-	Copyright (c) 2021 Reuben Thomas.
+	Copyright (c) 2021-2023 Reuben Thomas.
 	Copyright (c) 1990 Vladimir Lanin.
 
 	This program is distributed under the GNU GPL version 3, or, at your
-	option, any later version..
+	option, any later version.
 
 	Maintainer: Reuben Thomas <rrt@sc3d.org>
 
@@ -183,11 +183,11 @@ static char *getpath(char *tpath);
 static int badname(char *s);
 static FILEINFO *fsearch(char *s, DIRINFO *d);
 static size_t ffirst(char *s, size_t n, DIRINFO *d);
-static HANDLE *checkdir(char *p, char *pathend, int which);
+static HANDLE *checkdir(char *p, char *pathend);
 static void takedir(const char *p, DIRINFO *di, int sticky);
 static int fcmp(const void *pf1, const void *pf2);
 static HANDLE *hadd(char *n);
-static int hsearch(char *n, int which, HANDLE **ph);
+static int hsearch(char *n, HANDLE **ph);
 static DIRINFO *dadd(dev_t v, ino_t d);
 static DIRINFO *dsearch(dev_t v, ino_t d);
 static int match(char *pat, char *s, char **start1, size_t *len1);
@@ -224,9 +224,6 @@ static size_t ndirs = 0, dirroom;
 static DIRINFO **dirs;
 static size_t nhandles = 0, handleroom;
 static HANDLE **handles;
-static char badhandle_name[] = "\200";
-static HANDLE badhandle = {badhandle_name, NULL, 0};
-static HANDLE *(lasthandle[2]) = {&badhandle, &badhandle};
 static unsigned nreps = 0;
 static REP hrep, *lastrep = &hrep;
 
@@ -566,7 +563,7 @@ static int dostage(char *lastend, char *pathend, char **start1, size_t *len1, in
 		lastend = stagel[stage];
 	}
 
-	if ((h = checkdir(pathbuf, pathend, 0)) == NULL) {
+	if ((h = checkdir(pathbuf, pathend)) == NULL) {
 		if (stage == 0 || direrr == H_NOREADDIR) {
 			printf("%s -> %s : directory %s does not %s.\n",
 				from, to, pathbuf, direrr == H_NOREADDIR ?
@@ -774,7 +771,7 @@ static int checkto(HANDLE *hfrom, char *f, HANDLE **phto, char **pnto, FILEINFO 
 	else {
 		pathend = getpath(tpath);
 		hlen = (size_t)(pathend - fullrep);
-		*phto = checkdir(tpath, tpath + hlen, 1);
+		*phto = checkdir(tpath, tpath + hlen);
 		if (
 			*phto != NULL &&
 			*pathend != '\0' &&
@@ -787,7 +784,7 @@ static int checkto(HANDLE *hfrom, char *f, HANDLE **phto, char **pnto, FILEINFO 
 			strcpy(tpath + hlen, pathend);
 			pathend += tlen;
 			hlen += tlen;
-			*phto = checkdir(tpath, tpath + hlen, 1);
+			*phto = checkdir(tpath, tpath + hlen);
 		}
 
 		if (*pathend == '\0') {
@@ -944,7 +941,7 @@ static size_t ffirst(char *s, size_t n, DIRINFO *d)
 
 /* checkdir, takedir */
 
-static HANDLE *checkdir(char *p, char *pathend, int which)
+static HANDLE *checkdir(char *p, char *pathend)
 {
 	struct stat dstat;
 	ino_t d;
@@ -955,7 +952,7 @@ static HANDLE *checkdir(char *p, char *pathend, int which)
 	int sticky;
 	HANDLE *h;
 
-	if (hsearch(p, which, &h)) {
+	if (hsearch(p, &h)) {
 		if (h->h_di == NULL) {
 			direrr = h->h_err;
 			return(NULL);
@@ -1047,20 +1044,15 @@ static HANDLE *hadd(char *n)
 	return(h);
 }
 
-static int hsearch(char *n, int which, HANDLE **pret)
+static int hsearch(char *n, HANDLE **pret)
 {
-	if (strcmp(n, lasthandle[which]->h_name) == 0) {
-		*pret = lasthandle[which];
-		return(1);
-	}
-
 	for (unsigned i = 0; i < nhandles; i++)
 		if (strcmp(n, handles[i]->h_name) == 0) {
-			lasthandle[which] = *pret = handles[i];
+			*pret = handles[i];
 			return(1);
 		}
 
-	lasthandle[which] = *pret = hadd(n);
+	*pret = hadd(n);
 	return(0);
 }
 
