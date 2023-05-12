@@ -1604,7 +1604,7 @@ static void breakrep(int signum _GL_UNUSED_PARAMETER)
 
 static void breakstat(int signum _GL_UNUSED_PARAMETER)
 {
-	exit(1);
+	_exit(1);
 }
 
 static void quit(void)
