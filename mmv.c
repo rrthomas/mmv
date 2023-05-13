@@ -226,7 +226,6 @@ static void breakout(int signum _GL_UNUSED_PARAMETER)
 static void breakrep(int signum _GL_UNUSED_PARAMETER)
 {
 	gotsig = 1;
-	return;
 }
 
 static void breakstat(int signum _GL_UNUSED_PARAMETER)
