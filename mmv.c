@@ -1622,7 +1622,7 @@ static void doreps(void)
 			if (verbose || noex) {
 				if (p->r_flags & R_ISALIASED && !printaliased)
 					strcpy(fstart, p->r_ffrom->fi_name);
-				fprintf(stdout, "%s %c%c %s%s%s\n",
+				printf("%s %c%c %s%s%s\n",
 					pathbuf,
 					p->r_flags & R_ISALIASED ? '=' : '-',
 					p->r_flags & R_ISCYCLE ? '^' : '>',
@@ -1672,7 +1672,7 @@ static int snap(REP *first, REP *p)
 	signal(SIGINT, breakstat);
 	if (!verbose)
 		showdone(p);
-	fprintf(stdout, "The following left undone:\n");
+	printf("The following left undone:\n");
 	noex = 1;
 	return(first != p);
 }
@@ -1683,7 +1683,7 @@ static void showdone(REP *fin)
 		for (REP *p = first; p != NULL; p = p->r_thendo) {
 			if (p == fin)
 				return;
-			fprintf(stdout, "%s%s %c%c %s%s : done%s\n",
+			printf("%s%s %c%c %s%s : done%s\n",
 				p->r_hfrom->h_name, p->r_ffrom->fi_name,
 				p->r_flags & R_ISALIASED ? '=' : '-',
 				p->r_flags & R_ISCYCLE ? '^' : '>',
