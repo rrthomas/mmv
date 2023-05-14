@@ -123,6 +123,7 @@ typedef struct {
 
 #define DI_KNOWWRITE 0x01
 #define DI_CANWRITE 0x02
+#define DI_NONEXISTENT 0x04
 
 typedef struct {
 	dev_t di_vid;
@@ -130,14 +131,8 @@ typedef struct {
 	size_t di_nfils;
 	FILEINFO **di_fils;
 	char di_flags;
+	const char *di_path; /* Only set when DI_NONEXISTENT is set */
 } DIRINFO;
-
-static DIRINFO nonexistent_dir = {
-	(dev_t)-1, (dev_t)-1, 0, NULL, (DI_KNOWWRITE | DI_CANWRITE)
-};
-static DIRINFO created_dir = {
-	(dev_t)-1, (dev_t)-1, 0, NULL, (DI_KNOWWRITE | DI_CANWRITE)
-};
 
 #define H_NODIR 1
 #define H_NOREADDIR 2
@@ -179,7 +174,8 @@ static int op, badstyle, delstyle, verbose, noex, matchall, mkdirs;
 static int patflags;
 
 static size_t ndirs = 0, dirroom;
-static DIRINFO **dirs;
+static size_t ndirs_nonexistent = 0, dirroom_nonexistent;
+static DIRINFO **dirs, **dirs_nonexistent;
 static size_t nhandles = 0, handleroom;
 static HANDLE **handles;
 static unsigned nreps = 0;
@@ -629,7 +625,23 @@ static DIRINFO *dadd(dev_t v, ino_t d)
 	di->di_nfils = 0;
 	di->di_fils = NULL;
 	di->di_flags = 0;
+	di->di_path = NULL;
 	dirs[ndirs++] = di;
+	return(di);
+}
+
+static DIRINFO *dadd_nonexistent(const char *dir)
+{
+	if (ndirs_nonexistent == dirroom_nonexistent)
+		dirs_nonexistent = (DIRINFO **)x2nrealloc(dirs_nonexistent, &dirroom_nonexistent, sizeof(DIRINFO *));
+	DIRINFO *di = (DIRINFO *)xmalloc(sizeof(DIRINFO));
+	di->di_vid = (dev_t)-1;
+	di->di_did = (ino_t)-1;
+	di->di_nfils = 0;
+	di->di_fils = NULL;
+	di->di_flags = DI_KNOWWRITE | DI_CANWRITE | DI_NONEXISTENT;
+	di->di_path = xstrdup(dir);
+	dirs_nonexistent[ndirs_nonexistent++] = di;
 	return(di);
 }
 
@@ -638,6 +650,14 @@ static _GL_ATTRIBUTE_PURE DIRINFO *dsearch(dev_t v, ino_t d)
 	for (unsigned i = 0; i < ndirs; i++)
 		if (v == dirs[i]->di_vid && d == dirs[i]->di_did)
 			return(dirs[i]);
+	return(NULL);
+}
+
+static _GL_ATTRIBUTE_PURE DIRINFO *dsearch_nonexistent(const char *dir)
+{
+	for (unsigned i = 0; i < ndirs_nonexistent; i++)
+		if (strcmp(dirs_nonexistent[i]->di_path, dir) == 0)
+			return(dirs_nonexistent[i]);
 	return(NULL);
 }
 
@@ -701,9 +721,10 @@ static HANDLE *checkdir(char *p, char *pathend, int makedirs)
 	}
 
 	if (stat(myp, &dstat) || (dstat.st_mode & S_IFMT) != S_IFDIR) {
-		if (makedirs)
-			di = &nonexistent_dir;
-		else
+		if (makedirs) {
+			if ((di = dsearch_nonexistent(myp)) == NULL)
+				di = dadd_nonexistent(myp);
+		} else
 			direrr = h->h_err = H_NODIR;
 	} else if (access(myp, R_OK | X_OK))
 		direrr = h->h_err = H_NOREADDIR;
@@ -1002,7 +1023,7 @@ static int dostage(char *lastend, char *pathend, char **start1, size_t *len1, in
 		lastend = stagel[stage];
 	}
 
-	if ((h = checkdir(pathbuf, pathend, 0)) == NULL) {
+	if ((h = checkdir(pathbuf, pathend, mkdirs)) == NULL) {
 		if (stage == 0 || direrr == H_NOREADDIR) {
 			printf("%s -> %s : directory %s does not %s.\n",
 				from, to, pathbuf, direrr == H_NOREADDIR ?
@@ -1573,13 +1594,13 @@ static void doreps(void)
 				gotsig = 0;
 			}
 			strcpy(fullrep, p->r_hto->h_name);
-			if (mkdirs && p->r_hto->h_di == &nonexistent_dir) {
+			if (mkdirs && p->r_hto->h_di->di_flags & DI_NONEXISTENT) {
 				if (verbose)
 					printf("creating directory %s\n", p->r_hto->h_name);
 				int res = make_path(p->r_hto->h_name);
 				if (res != 0)
 					fprintf(stderr, "Strange, couldn't create directory %s.\n",  p->r_hto->h_name);
-				p->r_hto->h_di = &created_dir;
+				p->r_hto->h_di->di_flags &= ~DI_NONEXISTENT;
 			}
 			strcat(fullrep, p->r_nto);
 			if (!noex && (p->r_flags & R_ISCYCLE))
@@ -1657,7 +1678,10 @@ int main(int argc, char *argv[])
 	dirs = (DIRINFO **)xmalloc(dirroom * sizeof(DIRINFO *));
 	handles = (HANDLE **)xmalloc(handleroom * sizeof(HANDLE *));
 	ndirs = nhandles = 0;
-	nonexistent_dir.di_fils = (FILEINFO **)xmalloc(sizeof(FILEINFO *));
+
+	dirroom_nonexistent = INITROOM;
+	dirs_nonexistent = (DIRINFO **)xmalloc(dirroom_nonexistent * sizeof(DIRINFO *));
+	ndirs_nonexistent = 0;
 
 	struct gengetopt_args_info args_info;
 	if (cmdline_parser(argc, argv, &args_info) != 0)
