@@ -59,7 +59,6 @@
 #ifndef _WIN32
 #include "ignore-value.h"
 #endif
-#include "unused-parameter.h"
 
 #include "cmdline.h"
 
@@ -212,19 +211,19 @@ static ino_t cwdd = (ino_t)-1L;
 static dev_t cwdv = (dev_t)-1L;
 
 
-static void breakout(int signum _GL_UNUSED_PARAMETER)
+static void breakout(int signum _GL_UNUSED)
 {
 	fflush(stdout);
 	fprintf(stderr, "Aborting, nothing done.\n");
 	exit(1);
 }
 
-static void breakrep(int signum _GL_UNUSED_PARAMETER)
+static void breakrep(int signum _GL_UNUSED)
 {
 	gotsig = 1;
 }
 
-static void breakstat(int signum _GL_UNUSED_PARAMETER)
+static void breakstat(int signum _GL_UNUSED)
 {
 	_exit(1);
 }
