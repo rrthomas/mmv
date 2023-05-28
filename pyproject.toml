@@ -1,0 +1,66 @@
+[project]
+name = "mmv"
+version = "3.0"
+description = "Move, copy, and link multiple files"
+license = {text = "GPL v3 or later"}
+authors = [
+    {name = "Reuben Thomas", email = "rrt@sc3d.org"}
+]
+readme = "README.md"
+urls = {home_page = "https://github.com/rrthomas/rpl"}
+requires-python = ">= 3.10"
+dependencies = [
+]
+classifiers = [
+    "Environment :: Console",
+    "Programming Language :: Python :: 3",
+]
+
+[project.scripts]
+mmv = "mmv:main"
+
+[build-system]
+requires = [
+    "argparse-manpage[setuptools] >= 4.2",
+]
+
+[tool.setuptools]
+packages = ["mmv"]
+
+[tool.build_manpages]
+manpages = [
+    "mmv.1:module=mmv:function=get_parser:manual_title=User Commands:include=mmv-include.1",
+]
+
+[tool.mypy]
+exclude = [
+    '^dist',
+    '^build',
+    '^tests-output',
+]
+strict = true
+
+[tool.pylint.main]
+# Use multiple processes to speed up Pylint: 0 = auto-detect.
+jobs = 0
+
+[tool.pylint.MASTER]
+init-hook = 'import sys; sys.path.append(".")'
+
+[tool.pylint.format]
+good-names-rgxs = "^[_a-z][_a-z0-9]?$"
+disable = [
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "fixme",
+    "global-statement",
+    "too-many-locals",
+    "too-many-arguments",
+    "too-many-statements",
+    "too-many-branches",
+    "too-few-public-methods",
+]
+enable = [
+    "useless-suppression",
+]
