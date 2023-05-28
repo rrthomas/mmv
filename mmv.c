@@ -1141,7 +1141,6 @@ static int parsepat(void)
 				return(-1);
 			}
 			/* FALLTHROUGH */
-		case '!':
 		case '*':
 		case '?':
 		case '[':
