@@ -38,7 +38,8 @@ To build mmv from a release tarball, run
 The GNU autotools are required: automake, autoconf and libtool.
 [Gnulib](https://www.gnu.org/software/gnulib/) is also used, with a
 third-party `bootstrap` module; these are installed automatically.
-Finally, help2man is required to build the man page.
+pkg-config is also required. Finally, help2man is required to build the man
+page.
 
 To build from a Git repository, first run
 
