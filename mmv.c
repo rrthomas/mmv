@@ -772,7 +772,8 @@ static int checkto(HANDLE *hfrom, char *f, HANDLE **phto, char **pnto, FILEINFO 
 			*phto != NULL &&
 			*pathend != '\0' &&
 			(fdel = *pfdel = fsearch(pathend, (*phto)->h_di)) != NULL &&
-			(getstat(fullrep, fdel), fdel->fi_stflags & FI_ISDIR)
+			(getstat(fullrep, fdel), fdel->fi_stflags & FI_ISDIR) &&
+			(strcmp(pathend, fullrep) != 0)
 		) {
 			tlen = strlen(pathend);
 			strcpy(pathend + tlen, SLASHSTR);
