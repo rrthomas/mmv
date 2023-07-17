@@ -455,8 +455,7 @@ static char *getpath(char *tpath)
 {
 	char *pathstart, *pathend, c;
 
-		pathstart = fullrep;
-
+	pathstart = fullrep;
 	pathend = pathstart + strlen(pathstart) - 1;
 	while (pathend >= pathstart && *pathend != SLASH)
 		--pathend;
