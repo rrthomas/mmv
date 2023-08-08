@@ -1,7 +1,6 @@
 # mmv
 
-by Vladimir Lanin  
-maintained by Reuben Thomas <rrt@sc3d.org>  
+by Reuben Thomas <rrt@sc3d.org>  
 
 mmv is a program to move/copy/link multiple files according to a set of
 wildcard patterns. This multiple action is performed safely, i.e. without
@@ -16,38 +15,22 @@ version 3 of the License, or (at your option), any later version. See the
 file COPYING for more details.
 
 
-## Installation and compatibility
+## Installation
 
-mmv should work on any POSIX-1.2001-compatible system.
+The easiest way to install PSUtils is from PyPI, the Python Package Index:
 
-Reports on compatibility, whether positive or negative, are welcomed.
-
-
-### Building from a release tarball
-
-A C compiler and libgc are required to build from source. For building from
-Git, see below.
-
-To build mmv from an unpacked release tarball `mmv-x.y.tar.gz`, run
-
-`./configure && make && make check`
+`pip install mmv`
 
 
 ### Building from Git
 
-The GNU autotools are required: automake, autoconf and libtool.
-[Gnulib](https://www.gnu.org/software/gnulib/) is also used, with a
-third-party `bootstrap` module; these are installed automatically.
-pkg-config is also required. Finally, help2man is required to build the man
-page.
+mmv requires Python 3.10 or later and some Python libraries (listed in
+`pyproject.toml`, and automatically installed by the build procedure).
 
-To build from a Git repository, first run
+In the source directory: `python -m build` (requires the `build` package to
+be installed).
 
-```
-./bootstrap
-```
-
-Then see "Building from a release tarball" above.
+You can then install it with `pip install .`.
 
 
 ## Use
