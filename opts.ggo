@@ -1,5 +1,5 @@
 # gengetopt for mmv
-purpose "move/copy/link multiple files by wildcard patterns"
+purpose "move/copy/append/link multiple files by wildcard patterns"
 usage " [-m|-x|-r|-c|-o|-a|-l|-s] [-h] [-d|-p] [-g|-t] [-v|-n] FROM TO"
 
 description "The FROM pattern is a shell glob pattern, in which `*' stands for any number
@@ -25,6 +25,7 @@ groupoption "copydel"    x "copy source to target, then delete source"          
 groupoption "rename"     r "rename source to target in same directory"                    group="mode"
 groupoption "copy"       c "copy source to target, preserving source permissions"         group="mode"
 groupoption "overwrite"  o "overwrite target with source, preserving target permissions"  group="mode"
+groupoption "append"     a "append contents of source file to target"                     group="mode"
 groupoption "hardlink"   l "link target name to source file"                              group="mode"
 groupoption "symlink"    s "symlink target name to source file"                           group="mode"
 

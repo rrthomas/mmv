@@ -14,9 +14,14 @@
 /cmdline.h
 /lib
 /m4
+/mad
+/mad.exe
 /mcp
+/mcp.exe
 /mln
+/mln.exe
 /mmv
+/mmv.exe
 /mmv.1
 /mmv-*.tar.gz
 /stamp-h1

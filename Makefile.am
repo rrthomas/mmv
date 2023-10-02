@@ -33,7 +33,7 @@ bin_PROGRAMS = mmv$(EXEEXT)
 mmv_SOURCES = mmv.c cmdline.c cmdline.h
 mmv_LDADD = $(LDADD)
 
-SYMLINKS = mcp$(EXEEXT) mln$(EXEEXT)
+SYMLINKS = mcp$(EXEEXT) mln$(EXEEXT) mad$(EXEEXT)
 MAKELINKS = for n in $(SYMLINKS); do $(RM) $$n$(EXEEXT) && $(LN_S) mmv$(EXEEXT) $$n; done
 
 EXTRA_SRCS = opts.ggo
