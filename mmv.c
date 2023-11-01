@@ -54,6 +54,7 @@
 
 #include "progname.h"
 #include "binary-io.h"
+#include "dirname.h"
 #include "pathmax.h"
 #include "xalloc.h"
 #ifndef _WIN32
@@ -1756,11 +1757,13 @@ int main(int argc, char *argv[])
 	else if (args_info.symlink_given != 0)
 		op = SYMLINK;
 	else {
-		if (strcmp(program_name, COPYNAME) == 0)
+		const char *name = basename(program_name);
+
+		if (strcmp(name, COPYNAME) == 0)
 			op = NORMCOPY;
-		else if (strcmp(program_name, APPENDNAME) == 0)
+		else if (strcmp(name, APPENDNAME) == 0)
 			op = APPEND;
-		else if (strcmp(program_name, LINKNAME) == 0)
+		else if (strcmp(name, LINKNAME) == 0)
 			op = HARDLINK;
 		else
 			op = XMOVE;
