@@ -52,8 +52,8 @@ mmv.1: mmv.c build-aux/mmv-help2man-wrapper mmv-include.man
 
 mmv.o: cmdline.h
 
-cmdline.h cmdline.c: opts.ggo
-	gengetopt < opts.ggo --unamed-opts
+cmdline.h cmdline.c: $(top_srcdir)/opts.ggo
+	gengetopt < $(top_srcdir)/opts.ggo --unamed-opts
 
 all-local: mmv$(EXEEXT)
 	$(MAKELINKS)
