@@ -481,7 +481,6 @@ static FILEINFO *fsearch(char *s, DIRINFO *d)
 	FILEINFO *f = (FILEINFO *)xmalloc(sizeof(FILEINFO));
 	f->fi_name = s;
 	FILEINFO **res = bsearch(&f, d->di_fils, d->di_nfils, sizeof(FILEINFO *), fcmp);
-	free(f);
 	return res != NULL ? *res : NULL;
 }
 
@@ -568,7 +567,6 @@ static int make_path(char *path)
 				}
 				if (fail) {
 					umask(oldumask);
-					free(npath);
 					return(1);
 				}
 			}
@@ -576,7 +574,6 @@ static int make_path(char *path)
 				if (verbose)
 					printf("cannot create directory `%s': %s", npath, strerror(errno));
 				umask(oldumask);
-				free(npath);
 				return(1);
 			}
 		}
@@ -587,7 +584,6 @@ static int make_path(char *path)
 	}
 
 	umask(oldumask);
-	free(npath);
 	return(0);
 }
 
@@ -1802,8 +1798,6 @@ int main(int argc, char *argv[])
 	if (!(op & APPEND) && delstyle == ASKDEL)
 		scandeletes(skipdel);
 	doreps();
-
-	cmdline_parser_free(&args_info);
 
 	return(failed ? 2 : nreps == 0 && (paterr || badreps));
 }
