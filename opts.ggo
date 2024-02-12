@@ -10,7 +10,7 @@ FROM pattern wildcard [lowercased|uppercased].
 
 Patterns should be quoted on the command line."
 
-versiontext "Copyright (c) 2023 Reuben Thomas <rrt@sc3d.org>.
+versiontext "Copyright (c) 2024 Reuben Thomas <rrt@sc3d.org>.
 Copyright (c) 1990 Vladimir Lanin.
 Licence GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
 This is free software: you are free to change and redistribute it.

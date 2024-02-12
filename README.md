@@ -25,8 +25,8 @@ Reports on compatibility, whether positive or negative, are welcomed.
 
 ### Building from a release tarball
 
-A C compiler and libgc are required to build from source. For building from
-Git, see below.
+A C compiler is required to build from source. For building from Git, see
+below.
 
 To build mmv from an unpacked release tarball `mmv-x.y.tar.gz`, run
 

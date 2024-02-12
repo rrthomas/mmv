@@ -1,7 +1,7 @@
 /*
 	mmv
 
-	Copyright (c) 2021-2023 Reuben Thomas.
+	Copyright (c) 2021-2024 Reuben Thomas.
 	Copyright (c) 1990 Vladimir Lanin.
 
 	This program is distributed under the GNU GPL version 3, or, at your

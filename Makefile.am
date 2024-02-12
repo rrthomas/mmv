@@ -1,6 +1,6 @@
-# Top-level Makefile.am
+# Makefile.am
 #
-# Copyright (c) 2021 Reuben Thomas <rrt@sc3d.org>
+# Copyright (c) 2021-2024 Reuben Thomas <rrt@sc3d.org>
 #
 # This file is part of mmv.
 #
@@ -23,9 +23,9 @@ SUBDIRS = lib
 
 dist_doc_DATA = README.md
 
-LDADD = $(top_builddir)/lib/libgnu.a $(BDW_GC_LIBS)
+LDADD = $(top_builddir)/lib/libgnu.a
 AM_CPPFLAGS = -I$(top_srcdir)/lib -I$(top_builddir)/lib
-AM_CFLAGS = $(WARN_CFLAGS) $(BDW_GC_FLAGS)
+AM_CFLAGS = $(WARN_CFLAGS)
 
 dist_man_MANS = mmv.1
 

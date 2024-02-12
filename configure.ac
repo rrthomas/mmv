@@ -1,8 +1,8 @@
 # configure.ac for mmv
 #
-# Copyright (c) 2021-2023 Reuben Thomas <rrt@sc3d.org>
+# Copyright (c) 2021-2024 Reuben Thomas <rrt@sc3d.org>
 #
-# This file is part of Paper.
+# This file is part of mmv.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the Free
@@ -32,15 +32,6 @@ AM_PROG_AR
 AC_PROG_LN_S
 AC_USE_SYSTEM_EXTENSIONS
 gl_INIT
-
-dnl libgc (BDW garbage collector)
-PKG_CHECK_MODULES([BDW_GC],[bdw-gc >= 7.2])
-AH_BOTTOM([
-#define malloc GC_malloc
-#define realloc GC_realloc
-#define free GC_free
-#define strdup GC_strdup
-])
 
 dnl Extra warnings with GCC
 AC_ARG_ENABLE([gcc-warnings],
