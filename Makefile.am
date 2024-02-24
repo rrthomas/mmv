@@ -19,7 +19,7 @@
 
 ACLOCAL_AMFLAGS=-I m4
 
-SUBDIRS = lib
+SUBDIRS = .
 
 dist_doc_DATA = README.md
 
