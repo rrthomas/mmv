@@ -1,0 +1,21 @@
+name: macos
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          brew install pkg-config bdw-gc
+          brew install automake autoconf libtool
+
+      - name: Build
+        run: |
+          ./autogen.sh
+          ./configure
+          make
