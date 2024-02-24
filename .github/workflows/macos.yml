@@ -16,6 +16,6 @@ jobs:
 
       - name: Build
         run: |
-          ./autogen.sh
+          autoreconf --force --install --verbose
           ./configure
           make
