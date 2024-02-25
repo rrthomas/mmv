@@ -1751,7 +1751,7 @@ int main(int argc, char *argv[])
 	else if (args_info.symlink_given != 0)
 		op = SYMLINK;
 	else {
-		const char *name = basename(program_name);
+		const char *name = base_name(program_name);
 
 		if (strcmp(name, COPYNAME) == 0)
 			op = NORMCOPY;
