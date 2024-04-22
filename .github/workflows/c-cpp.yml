@@ -23,11 +23,11 @@ jobs:
       with: { submodules: true }
     - name: Install dependencies (Ubuntu)
       if: ${{ matrix.os == 'ubuntu-latest' }}
-      run: sudo apt-get -y install gengetopt help2man
+      run: sudo apt-get -y install gengetopt help2man libgee-0.8-dev
     - name: Install dependencies (macOS)
       if: ${{ matrix.os == 'macos-latest' }}
       run: |
-        brew install coreutils automake gengetopt help2man
+        brew install coreutils automake gengetopt help2man libgee
         echo "$(brew --prefix m4)/bin" >> $GITHUB_PATH
     - name: Build
       run: ./bootstrap && ./configure && make V=1 && make distcheck

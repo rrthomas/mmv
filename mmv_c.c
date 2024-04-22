@@ -1,29 +1,29 @@
 /*
-	mmv
+  mmv
 
 	Copyright (c) 2021-2024 Reuben Thomas.
 	Copyright (c) 1990 Vladimir Lanin.
 
-	This program is distributed under the GNU GPL version 3, or, at your
-	option, any later version.
+  This program is distributed under the GNU GPL version 3, or, at your
+  option, any later version.
 
-	Maintainer: Reuben Thomas <rrt@sc3d.org>
+  Maintainer: Reuben Thomas <rrt@sc3d.org>
 
-	The original author of mmv was Vladimir Lanin <lanin@csd2.nyu.edu>.
+  The original author of mmv was Vladimir Lanin <lanin@csd2.nyu.edu>.
 
-	Many thanks to those who have to contributed to the design
-	and/or coding of this program:
+  Many thanks to those who have to contributed to the design
+  and/or coding of this program:
 
-	Tom Albrecht:	initial Sys V adaptation, consultation, and testing
-	Carl Mascott:	V7 adaptation
-	Mark Lewis:	-n flag idea, consultation.
-	Dave Bernhold:	upper/lowercase conversion idea.
-	Paul Stodghill:	copy option, argv[0] checking.
-	Frank Fiamingo:	consultation and testing.
-	Tom Jordahl:	bug reports and testing.
-	John Lukas, Hugh Redelmeyer, Barry Nelson, John Sauter,
-	Phil Dench, John Nelson:
-			bug reports.
+  Tom Albrecht:	initial Sys V adaptation, consultation, and testing
+  Carl Mascott:	V7 adaptation
+  Mark Lewis:	-n flag idea, consultation.
+  Dave Bernhold:	upper/lowercase conversion idea.
+  Paul Stodghill:	copy option, argv[0] checking.
+  Frank Fiamingo:	consultation and testing.
+  Tom Jordahl:	bug reports and testing.
+  John Lukas, Hugh Redelmeyer, Barry Nelson, John Sauter,
+  Phil Dench, John Nelson:
+  bug reports.
 */
 
 #include "config.h"
@@ -73,12 +73,13 @@
 #define OVERWRITE 0x004
 #define NORMMOVE 0x008
 #define XMOVE 0x010
+#define DIRMOVE 0x020
 #define APPEND 0x040
 #define HARDLINK 0x100
 #define SYMLINK 0x200
 
 #define COPY (NORMCOPY | OVERWRITE)
-#define MOVE (NORMMOVE | XMOVE)
+#define MOVE (NORMMOVE | XMOVE | DIRMOVE)
 #define LINK (HARDLINK | SYMLINK)
 
 static char COPYNAME[] = "mcp";
@@ -139,6 +140,7 @@ typedef struct {
 	char h_err;
 } HANDLE;
 
+#define R_ISX 0x01
 #define R_SKIP 0x02
 #define R_DELOK 0x04
 #define R_ISALIASED 0x08
@@ -165,45 +167,48 @@ typedef struct {
 } REPDICT;
 
 
-static int op, badstyle, delstyle, verbose, noex, matchall, mkdirs;
+extern int op, badstyle, delstyle, verbose, noex, matchall, mkdirs;
+extern int patflags;
 
-static size_t ndirs = 0, dirroom;
-static size_t ndirs_nonexistent = 0, dirroom_nonexistent;
-static DIRINFO **dirs, **dirs_nonexistent;
-static size_t nhandles = 0, handleroom;
-static HANDLE **handles;
-static unsigned nreps = 0;
-static REP hrep, *lastrep = &hrep;
+extern size_t ndirs;
+size_t dirroom;
+size_t ndirs_nonexistent = 0, dirroom_nonexistent;
+DIRINFO **dirs, **dirs_nonexistent;
+size_t nhandles = 0, handleroom;
+HANDLE **handles;
+extern unsigned nreps;
+REP hrep, *lastrep = &hrep;
 
-static int badreps = 0, paterr = 0, direrr, failed = 0, gotsig = 0, repbad;
+extern int badreps, paterr, direrr, failed, gotsig, repbad;
 
-static char TEMP[] = "$$mmvtmp.";
-static char TOOLONG[] = "(too long)";
-static char EMPTY[] = "(empty)";
+#define TEMP "$$mmvtmp."
+#define TOOLONG "(too long)"
+#define EMPTY "(empty)"
 
-static char SLASHSTR[] = {SLASH, '\0'};
+#define SLASHSTR "/"
 
 #define PATLONG "%.40s... : pattern too long.\n"
 
-char from[MAXPATLEN], to[MAXPATLEN];
-static size_t fromlen, tolen;
-static char *(stagel[MAXWILD]), *(firstwild[MAXWILD]), *(stager[MAXWILD]);
-static int nwilds[MAXWILD];
-static int nstages;
-char pathbuf[PATH_MAX];
+/* char from[MAXPATLEN], to[MAXPATLEN]; */
+extern char *from, *to;
+extern size_t fromlen, tolen;
+char *(stagel[MAXWILD]), *(firstwild[MAXWILD]), *(stager[MAXWILD]);
+extern int nwilds[MAXWILD];
+extern int nstages;
+extern char *pathbuf;
 char fullrep[PATH_MAX + 1];
-static char *(start[MAXWILD]);
-static size_t length[MAXWILD];
-static REP mistake;
+extern char *(start[MAXWILD]);
+extern size_t length[MAXWILD];
+REP mistake;
 #define MISTAKE (&mistake)
 
 
-static const char *home;
-static size_t homelen;
-static uid_t uid;
-static mode_t oldumask;
-static ino_t cwdd = (ino_t)-1L;
-static dev_t cwdv = (dev_t)-1L;
+extern const char *home;
+extern size_t homelen;
+uid_t uid, euid;
+mode_t oldumask;
+ino_t cwdd = (ino_t)-1L;
+dev_t cwdv = (dev_t)-1L;
 
 
 static void quit(void)
@@ -238,13 +243,13 @@ static void printchain(REP *p)
 	p->r_ffrom->fi_rep = MISTAKE;
 }
 
-static void nochains(void)
+void nochains(void)
 {
 	for (REP *q = &hrep, *p = q->r_next; p != NULL; q = p, p = p->r_next)
 		if (p->r_flags & R_ISCYCLE || p->r_thendo != NULL) {
 			printchain(p);
 			printf("%s%s : no chain copies allowed.\n",
-				p->r_hto->h_name, p->r_nto);
+			       p->r_hto->h_name, p->r_nto);
 			q->r_next = p->r_next;
 			p = q;
 		}
@@ -271,7 +276,7 @@ static bool getreply(void)
 	return yes;
 }
 
-static void goonordie(void)
+void goonordie(void)
 {
 	if ((paterr || badreps) && nreps > 0) {
 		fprintf(stderr, "Not everything specified can be done.");
@@ -326,15 +331,15 @@ static int match(char *pat, char *s, char **start1, size_t *len1)
 			else {
 				for (*len1=0; !match(pat, s, start1+1, len1+1); (*len1)++, s++)
 					if (
-						*s == '\0'
-					)
+					    *s == '\0'
+					    )
 						return(0);
 				return(1);
 			}
 		case '?':
 			if (
-				*s == '\0'
-			)
+			    *s == '\0'
+			    )
 				return(0);
 			*(start1++) = s;
 			*(len1++) = 1;
@@ -427,7 +432,7 @@ static int keepmatch(FILEINFO *ffrom, char *pathend, size_t *pk, int needslash, 
 	if ((size_t)(pathend - pathbuf) + *pk + (size_t)needslash >= PATH_MAX) {
 		*pathend = '\0';
 		printf("%s -> %s : search path %s%s too long.\n",
-			from, to, pathbuf, ffrom->fi_name);
+		       from, to, pathbuf, ffrom->fi_name);
 		paterr = 1;
 		return(0);
 	}
@@ -577,23 +582,6 @@ static int make_path(char *path)
 
 	umask(oldumask);
 	return(0);
-}
-
-/* Create a non-existent directory and update its DIRINFO. */
-static int make_directory(HANDLE *h) {
-	int res = make_path(h->h_name);
-	if (res != 0)
-		fprintf(stderr, "Strange, couldn't create directory %s.\n",  h->h_name);
-	else {
-		struct stat dstat;
-		if (stat(h->h_name, &dstat) || (dstat.st_mode & S_IFMT) != S_IFDIR) {
-			fprintf(stderr, "Strange, couldn't stat new directory %s.\n", h->h_name);
-			res = -1;
-		}
-		h->h_di->di_vid = dstat.st_dev;
-		h->h_di->di_did = dstat.st_ino;
-	}
-	return res;
 }
 
 static HANDLE *hadd(char *n)
@@ -752,47 +740,64 @@ static HANDLE *checkdir(char *p, char *pathend, int makedirs)
 	return(h);
 }
 
-static int checkto(char *f, HANDLE **phto, char **pnto, FILEINFO **pfdel)
+static int checkto(HANDLE *hfrom, char *f, HANDLE **phto, char **pnto, FILEINFO **pfdel)
 {
 	char tpath[PATH_MAX + 1];
+	char *pathend;
 	FILEINFO *fdel = NULL;
+	size_t hlen, tlen;
 
-	char *pathend = getpath(tpath);
-	size_t hlen = (size_t)(pathend - fullrep);
-	*phto = checkdir(tpath, tpath + hlen, mkdirs);
-	if (
-	    *phto != NULL &&
-	    *pathend != '\0' &&
-	    (fdel = *pfdel = fsearch(pathend, (*phto)->h_di)) != NULL &&
-	    (getstat(fullrep, fdel), fdel->fi_stflags & FI_ISDIR) &&
-	    (strcmp(pathend, fullrep) != 0)
-	    ) {
-		size_t tlen = strlen(pathend);
-		strcpy(pathend + tlen, SLASHSTR);
-		tlen++;
-		strcpy(tpath + hlen, pathend);
-		pathend += tlen;
-		hlen += tlen;
+	if (op & DIRMOVE) {
+		*phto = hfrom;
+		hlen = strlen(hfrom->h_name);
+		pathend = fullrep + hlen;
+		memmove(pathend, fullrep, strlen(fullrep) + 1);
+		memmove(fullrep, hfrom->h_name, hlen);
+		if ((fdel = *pfdel = fsearch(pathend, hfrom->h_di)) != NULL) {
+			*pnto = xstrdup(fdel->fi_name);
+			getstat(fullrep, fdel);
+		}
+		else
+			*pnto = xstrdup(pathend);
+	}
+	else {
+		pathend = getpath(tpath);
+		hlen = (size_t)(pathend - fullrep);
 		*phto = checkdir(tpath, tpath + hlen, mkdirs);
-	}
+		if (
+			*phto != NULL &&
+			*pathend != '\0' &&
+			(fdel = *pfdel = fsearch(pathend, (*phto)->h_di)) != NULL &&
+			(getstat(fullrep, fdel), fdel->fi_stflags & FI_ISDIR) &&
+			(strcmp(pathend, fullrep) != 0)
+		) {
+			tlen = strlen(pathend);
+			strcpy(pathend + tlen, SLASHSTR);
+			tlen++;
+			strcpy(tpath + hlen, pathend);
+			pathend += tlen;
+			hlen += tlen;
+			*phto = checkdir(tpath, tpath + hlen, mkdirs);
+		}
 
-	if (*pathend == '\0') {
-		*pnto = xstrdup(f);
-		if ((size_t)(pathend - fullrep) + strlen(f) >= PATH_MAX) {
-			strcpy(fullrep, TOOLONG);
-			return(-1);
+		if (*pathend == '\0') {
+			*pnto = xstrdup(f);
+			if ((size_t)(pathend - fullrep) + strlen(f) >= PATH_MAX) {
+				strcpy(fullrep, TOOLONG);
+				return(-1);
+			}
+			strcat(pathend, f);
+			if (*phto != NULL) {
+				fdel = *pfdel = fsearch(f, (*phto)->h_di);
+				if (fdel != NULL)
+					getstat(fullrep, fdel);
+			}
 		}
-		strcat(pathend, f);
-		if (*phto != NULL) {
-			fdel = *pfdel = fsearch(f, (*phto)->h_di);
-			if (fdel != NULL)
-				getstat(fullrep, fdel);
-		}
+		else if (fdel != NULL)
+			*pnto = fdel->fi_name;
+		else
+			*pnto = xstrdup(pathend);
 	}
-	else if (fdel != NULL)
-		*pnto = fdel->fi_name;
-	else
-		*pnto = xstrdup(pathend);
 	return(0);
 }
 
@@ -801,7 +806,7 @@ static int badname(char *s)
 	return (
 		(*s == '.' && (s[1] == '\0' || strcmp(s, "..") == 0)) ||
 		strlen(s) > NAME_MAX
-	);
+		);
 }
 
 static int dwritable(HANDLE *h)
@@ -858,46 +863,46 @@ static int badrep(HANDLE *hfrom, FILEINFO *ffrom, HANDLE **phto, char **pnto, FI
 			pathbuf, fullrep);
 	else if ((op & (COPY | APPEND)) && access(pathbuf, R_OK))
 		printf("%s -> %s : no read permission for source file.\n",
-			pathbuf, fullrep);
+		       pathbuf, fullrep);
 	else if (
-		*f == '.' &&
-		(f[1] == '\0' || strcmp(f, "..") == 0) &&
-		!(op & SYMLINK)
-	)
+		 *f == '.' &&
+		 (f[1] == '\0' || strcmp(f, "..") == 0) &&
+		 !(op & SYMLINK)
+		 )
 		printf("%s -> %s : . and .. can't be renamed.\n", pathbuf, fullrep);
-	else if (repbad || checkto(f, phto, pnto, pfdel) || badname(*pnto))
+	else if (repbad || checkto(hfrom, f, phto, pnto, pfdel) || badname(*pnto))
 		printf("%s -> %s : bad new name.\n", pathbuf, fullrep);
 	else if (*phto == NULL)
 		printf("%s -> %s : %s.\n", pathbuf, fullrep,
-			direrr == H_NOREADDIR ?
-			"no read or search permission for target directory" :
-			"target directory does not exist (you could use --makedirs)");
+		       direrr == H_NOREADDIR ?
+		       "no read or search permission for target directory" :
+		       "target directory does not exist");
 	else if (!dwritable(*phto))
 		printf("%s -> %s : no write permission for target directory.\n",
-			pathbuf, fullrep);
+		       pathbuf, fullrep);
 	else if (
-		(*phto)->h_di->di_vid != hfrom->h_di->di_vid &&
-		(op & (NORMMOVE | HARDLINK))
-	)
+		 (*phto)->h_di->di_vid != hfrom->h_di->di_vid &&
+		 (*pflags = R_ISX, (op & (NORMMOVE | HARDLINK)))
+		 )
 		printf("%s -> %s : cross-device move.\n",
-			pathbuf, fullrep);
+		       pathbuf, fullrep);
 	else if (
-		*pflags && (op & MOVE) &&
-		!(ffrom->fi_stflags & FI_ISLNK) &&
-		access(pathbuf, R_OK)
-	)
+		 *pflags && (op & MOVE) &&
+		 !(ffrom->fi_stflags & FI_ISLNK) &&
+		 access(pathbuf, R_OK)
+		 )
 		printf("%s -> %s : no read permission for source file.\n",
-			pathbuf, fullrep);
+		       pathbuf, fullrep);
 	else if (
-		(op & SYMLINK) &&
-		!(
-			((*phto)->h_di->di_vid == cwdv && (*phto)->h_di->di_did == cwdd) ||
-			*(hfrom->h_name) == SLASH ||
-			(*pflags |= R_ONEDIRLINK, hfrom->h_di == (*phto)->h_di)
-		)
-	)
+		 (op & SYMLINK) &&
+		 !(
+		   ((*phto)->h_di->di_vid == cwdv && (*phto)->h_di->di_did == cwdd) ||
+		   *(hfrom->h_name) == SLASH ||
+		   (*pflags |= R_ONEDIRLINK, hfrom->h_di == (*phto)->h_di)
+		   )
+		 )
 		printf("%s -> %s : symbolic link would be badly aimed.\n",
-			pathbuf, fullrep);
+		       pathbuf, fullrep);
 	else
 		return(0);
 	badreps++;
@@ -955,16 +960,16 @@ static void makerep(void)
 			if (l == PATH_MAX)
 				goto toolong;
 			if (c == SLASH &&
-				(
-					p == fullrep ? pat != to :
-					(
-						(
-							(pc = *(p - 1)) == SLASH
-						) &&
-						*(pat - 1) != pc
-					)
-				)
-			) {
+			    (
+			     p == fullrep ? pat != to :
+			     (
+			      (
+			       (pc = *(p - 1)) == SLASH
+			       ) &&
+			      *(pat - 1) != pc
+			      )
+			     )
+			    ) {
 				repbad = 1;
 				if (l + STRLEN(EMPTY) >= PATH_MAX)
 					goto toolong;
@@ -982,12 +987,12 @@ static void makerep(void)
 	*(p++) = '\0';
 	return;
 
-toolong:
+ toolong:
 	repbad = 1;
 	strcpy(fullrep, TOOLONG);
 }
 
-static int dostage(char *lastend, char *pathend, char **start1, size_t *len1, int stage, int anylev)
+int dostage(char *lastend, char *pathend, char **start1, size_t *len1, int stage, int anylev)
 {
 	DIRINFO *di;
 	HANDLE *h, *hto;
@@ -1002,7 +1007,7 @@ static int dostage(char *lastend, char *pathend, char **start1, size_t *len1, in
 		prelen = (size_t)(stagel[stage] - lastend);
 		if ((size_t)(pathend - pathbuf) + prelen >= PATH_MAX) {
 			printf("%s -> %s : search path after %s too long.\n",
-				from, to, pathbuf);
+			       from, to, pathbuf);
 			paterr = 1;
 			return(1);
 		}
@@ -1015,8 +1020,8 @@ static int dostage(char *lastend, char *pathend, char **start1, size_t *len1, in
 	if ((h = checkdir(pathbuf, pathend, mkdirs)) == NULL) {
 		if (stage == 0 || direrr == H_NOREADDIR) {
 			printf("%s -> %s : directory %s does not %s.\n",
-				from, to, pathbuf, direrr == H_NOREADDIR ?
-				"allow reads/searches" : "exist");
+			       from, to, pathbuf, direrr == H_NOREADDIR ?
+			       "allow reads/searches" : "exist");
 			paterr = 1;
 		}
 		return(stage);
@@ -1034,7 +1039,7 @@ static int dostage(char *lastend, char *pathend, char **start1, size_t *len1, in
 
 	if ((op & MOVE) && !dwritable(h)) {
 		printf("%s -> %s : directory %s does not allow writes.\n",
-			from, to, pathbuf);
+		       from, to, pathbuf);
 		paterr = 1;
 		goto skiplev;
 	}
@@ -1045,52 +1050,52 @@ static int dostage(char *lastend, char *pathend, char **start1, size_t *len1, in
 	litlen = (size_t)(firstesc - lastend);
 	pf = di->di_fils + (i = ffirst(lastend, litlen, di));
 	if (i < nfils)
-	do {
-		if (
-			(try = trymatch(*pf, lastend)) != 0 &&
-			(
-				try == 1 ||
-				match(lastend + litlen, (*pf)->fi_name + litlen,
-					start1 + anylev, len1 + anylev)
-			) &&
-			keepmatch(*pf, pathend, &k, 0, laststage)
-		) {
-			if (!laststage)
-				ret &= dostage(stager[stage], pathend + k,
-					start1 + nwilds[stage], len1 + nwilds[stage],
-					stage + 1, 0);
-			else {
-				ret = 0;
-				makerep();
-				if (badrep(h, *pf, &hto, &nto, &fdel, &flags)) {
-					(*pf)->fi_rep = MISTAKE;
-				} else {
-					(*pf)->fi_rep = p = (REP *)xmalloc(sizeof(REP));
-					p->r_flags = flags;
-					p->r_hfrom = h;
-					p->r_ffrom = *pf;
-					p->r_hto = hto;
-					p->r_nto = xstrdup(nto);
-					p->r_fdel = fdel;
-					p->r_first = p;
-					p->r_thendo = NULL;
-					p->r_next = NULL;
-					lastrep->r_next = p;
-					lastrep = p;
-					nreps++;
+		do {
+			if (
+			    (try = trymatch(*pf, lastend)) != 0 &&
+			    (
+			     try == 1 ||
+			     match(lastend + litlen, (*pf)->fi_name + litlen,
+				   start1 + anylev, len1 + anylev)
+			     ) &&
+			    keepmatch(*pf, pathend, &k, 0, laststage)
+			    ) {
+				if (!laststage)
+					ret &= dostage(stager[stage], pathend + k,
+						       start1 + nwilds[stage], len1 + nwilds[stage],
+						       stage + 1, 0);
+				else {
+					ret = 0;
+					makerep();
+					if (badrep(h, *pf, &hto, &nto, &fdel, &flags)) {
+						(*pf)->fi_rep = MISTAKE;
+					} else {
+						(*pf)->fi_rep = p = (REP *)xmalloc(sizeof(REP));
+						p->r_flags = flags | patflags;
+						p->r_hfrom = h;
+						p->r_ffrom = *pf;
+						p->r_hto = hto;
+						p->r_nto = xstrdup(nto);
+						p->r_fdel = fdel;
+						p->r_first = p;
+						p->r_thendo = NULL;
+						p->r_next = NULL;
+						lastrep->r_next = p;
+						lastrep = p;
+						nreps++;
+					}
 				}
 			}
-		}
-		i++, pf++;
-	} while (i < nfils && strncmp(lastend, (*pf)->fi_name, litlen) == 0);
+			i++, pf++;
+		} while (i < nfils && strncmp(lastend, (*pf)->fi_name, litlen) == 0);
 
-skiplev:
+ skiplev:
 	if (anylev)
 		for (pf = di->di_fils, i = 0; i < nfils; i++, pf++)
 			if (
-				*((*pf)->fi_name) != '.' &&
-				keepmatch(*pf, pathend, &k, 1, 0)
-			) {
+			    *((*pf)->fi_name) != '.' &&
+			    keepmatch(*pf, pathend, &k, 1, 0)
+			    ) {
 				*len1 = (size_t)(pathend - *start1) + k;
 				ret &= dostage(lastend, pathend + k, start1, len1, stage, 1);
 			}
@@ -1098,7 +1103,7 @@ skiplev:
 	return(ret);
 }
 
-static int parsepat(void)
+int parsepat(void)
 {
 	char *p, *lastname, c;
 	int totwilds, instage;
@@ -1159,7 +1164,7 @@ static int parsepat(void)
 					return(-1);
 				case SLASH:
 					printf("%s -> %s : '%c' cannot be part of [].\n",
-						from, to, c);
+					       from, to, c);
 					return(-1);
 				case ESC:
 					if ((c = *(++p)) == '\0') {
@@ -1192,7 +1197,7 @@ static int parsepat(void)
 	if (to[0] == '~' && to[1] == SLASH) {
 		if ((homelen = strlen(home)) + tolen > MAXPATLEN) {
 			printf(PATLONG, to);
-				return(-1);
+			return(-1);
 		}
 		memmove(to + homelen, to + 1, tolen);
 		memmove(to, home, homelen);
@@ -1202,6 +1207,11 @@ static int parsepat(void)
 	for (p = lastname; (c = *p) != '\0'; p++)
 		switch (c) {
 		case SLASH:
+			if (op & DIRMOVE) {
+				printf("%s -> %s : no path allowed in target under -r.\n",
+				       from, to);
+				return(-1);
+			}
 			lastname = p + 1;
 			break;
 		case '#':
@@ -1211,7 +1221,7 @@ static int parsepat(void)
 			}
 			if (!isdigit(c)) {
 				printf("%s -> %s : expected digit (not '%c') after #.\n",
-					from, to, c);
+				       from, to, c);
 				return(-1);
 			}
 			int x;
@@ -1224,7 +1234,7 @@ static int parsepat(void)
 			}
 			if (x < 1 || x > totwilds) {
 				printf("%s -> %s : wildcard #%d does not exist.\n",
-					from, to, x);
+				       from, to, x);
 				return(-1);
 			}
 			break;
@@ -1238,33 +1248,6 @@ static int parsepat(void)
 	return(0);
 }
 
-static void matchpat(void)
-{
-	if (parsepat())
-		paterr = 1;
-	else if (dostage(from, pathbuf, start, length, 0, 0)) {
-		printf("%s -> %s : no match.\n", from, to);
-		paterr = 1;
-	}
-}
-
-static void domatch(char *cfrom, char *cto)
-{
-	if ((fromlen = strlen(cfrom)) >= MAXPATLEN) {
-		printf(PATLONG, cfrom);
-		paterr = 1;
-	}
-	else if ((tolen = strlen(cto)) >= MAXPATLEN) {
-		printf(PATLONG, cto);
-		paterr = 1;
-	}
-	else {
-		strcpy(from, cfrom);
-		strcpy(to, cto);
-		matchpat();
-	}
-}
-
 static int rdcmp(const void *p1, const void *p2)
 {
 	int ret;
@@ -1272,14 +1255,14 @@ static int rdcmp(const void *p1, const void *p2)
 	REPDICT *rd1 = (REPDICT *)p1;
 	REPDICT *rd2 = (REPDICT *)p2;
 	if (
-		(ret = (int)(long)(rd1->rd_dto - rd2->rd_dto)) == 0 &&
-		(ret = strcmp(rd1->rd_nto, rd2->rd_nto)) == 0
-	)
+	    (ret = (int)(long)(rd1->rd_dto - rd2->rd_dto)) == 0 &&
+	    (ret = strcmp(rd1->rd_nto, rd2->rd_nto)) == 0
+	    )
 		ret = (int)(long)(rd1->rd_i - rd2->rd_i);
 	return(ret);
 }
 
-static void checkcollisions(void)
+void checkcollisions(void)
 {
 	REPDICT *rd, *prd;
 	REP *p, *q;
@@ -1289,10 +1272,10 @@ static void checkcollisions(void)
 		return;
 	rd = (REPDICT *)xmalloc(nreps * sizeof(REPDICT));
 	for (
-		q = &hrep, p = q->r_next, prd = rd, i = 0;
-		p != NULL;
-		q = p, p = p->r_next, prd++, i++
-	) {
+	     q = &hrep, p = q->r_next, prd = rd, i = 0;
+	     p != NULL;
+	     q = p, p = p->r_next, prd++, i++
+	     ) {
 		prd->rd_p = p;
 		prd->rd_dto = p->r_hto->h_di;
 		prd->rd_nto = p->r_nto;
@@ -1302,16 +1285,16 @@ static void checkcollisions(void)
 	unsigned mult = 0;
 	for (i = 0, prd = rd, oldnreps = nreps; i < oldnreps; i++, prd++)
 		if (
-			i < oldnreps - 1 &&
-			prd->rd_dto == (prd + 1)->rd_dto &&
-			strcmp(prd->rd_nto, (prd + 1)->rd_nto) == 0
-		) {
+		    i < oldnreps - 1 &&
+		    prd->rd_dto == (prd + 1)->rd_dto &&
+		    strcmp(prd->rd_nto, (prd + 1)->rd_nto) == 0
+		    ) {
 			if (!mult)
 				mult = 1;
 			else
 				printf(" , ");
 			printf("%s%s", prd->rd_p->r_hfrom->h_name,
-				prd->rd_p->r_ffrom->fi_name);
+			       prd->rd_p->r_ffrom->fi_name);
 			prd->rd_p->r_flags |= R_SKIP;
 			prd->rd_p->r_ffrom->fi_rep = MISTAKE;
 			nreps--;
@@ -1323,13 +1306,13 @@ static void checkcollisions(void)
 			nreps--;
 			badreps++;
 			printf(" , %s%s -> %s%s : collision.\n",
-				prd->rd_p->r_hfrom->h_name, prd->rd_p->r_ffrom->fi_name,
-				prd->rd_p->r_hto->h_name, prd->rd_nto);
+			       prd->rd_p->r_hfrom->h_name, prd->rd_p->r_ffrom->fi_name,
+			       prd->rd_p->r_hto->h_name, prd->rd_nto);
 			mult = 0;
 		}
 }
 
-static void findorder(void)
+void findorder(void)
 {
 	REP *first, *pred;
 	FILEINFO *fi;
@@ -1340,10 +1323,10 @@ static void findorder(void)
 			p = q;
 		}
 		else if (
-			(fi = p->r_fdel) == NULL ||
-			(pred = fi->fi_rep) == NULL ||
-			pred == MISTAKE
-		)
+			 (fi = p->r_fdel) == NULL ||
+			 (pred = fi->fi_rep) == NULL ||
+			 pred == MISTAKE
+			 )
 			continue;
 		else if ((first = pred->r_first) == p) {
 			p->r_flags |= R_ISCYCLE;
@@ -1364,7 +1347,7 @@ static void findorder(void)
 		}
 }
 
-static void scandeletes(int (*pkilldel)(REP *))
+void scandeletes(int (*pkilldel)(REP *))
 {
 	for (REP *q = &hrep, *p = q->r_next; p != NULL; q = p, p = p->r_next) {
 		if (p->r_fdel != NULL)
@@ -1387,7 +1370,7 @@ static void scandeletes(int (*pkilldel)(REP *))
 	}
 }
 
-static int baddel(REP *p)
+int baddel(REP *p)
 {
 	HANDLE *hfrom = p->r_hfrom, *hto = p->r_hto;
 	FILEINFO *fto = p->r_fdel;
@@ -1396,28 +1379,28 @@ static int baddel(REP *p)
 
 	if (delstyle == NODEL && !(p->r_flags & R_DELOK) && !(op & APPEND))
 		printf("%s%s -> %s%s : old %s%s would have to be %s.\n",
-			hnf, f, hnt, t, hnt, t,
-			(op & OVERWRITE) ? "overwritten" : "deleted");
+		       hnf, f, hnt, t, hnt, t,
+		       (op & OVERWRITE) ? "overwritten" : "deleted");
 	else if (fto->fi_rep == MISTAKE)
 		printf("%s%s -> %s%s : old %s%s was to be done first.\n",
-			hnf, f, hnt, t, hnt, t);
+		       hnf, f, hnt, t, hnt, t);
 	else if (
-		fto->fi_stflags & FI_ISDIR
-	)
+		 fto->fi_stflags & FI_ISDIR
+		 )
 		printf("%s%s -> %s%s : %s%s%s is a directory.\n",
 		       hnf, f, hnt, t, (op & APPEND) ? "" : "old ", hnt, t);
 	else if ((fto->fi_stflags & FI_NODEL) && !(op & (APPEND | OVERWRITE)))
 		printf("%s%s -> %s%s : old %s%s lacks delete permission.\n",
-			hnf, f, hnt, t, hnt, t);
+		       hnf, f, hnt, t, hnt, t);
 	else if (
 		(op & (APPEND | OVERWRITE)) &&
 		!fwritable(hnt, fto)
 	) {
 		printf("%s%s -> %s%s : %s%s %s.\n",
-			hnf, f, hnt, t, hnt, t,
-			fto->fi_stflags & FI_LINKERR ?
-			"is a badly aimed symbolic link" :
-			"lacks write permission");
+		       hnf, f, hnt, t, hnt, t,
+		       fto->fi_stflags & FI_LINKERR ?
+		       "is a badly aimed symbolic link" :
+		       "lacks write permission");
 	}
 	else
 		return(0);
@@ -1425,7 +1408,7 @@ static int baddel(REP *p)
 	return(1);
 }
 
-static int skipdel(REP *p)
+int skipdel(REP *p)
 {
 	if (p->r_flags & R_DELOK)
 		return(0);
@@ -1433,9 +1416,9 @@ static int skipdel(REP *p)
 		p->r_hfrom->h_name, p->r_ffrom->fi_name,
 		p->r_hto->h_name, p->r_nto);
 	if (
-		!(p->r_ffrom->fi_stflags & FI_ISLNK) &&
-		!fwritable(p->r_hto->h_name, p->r_fdel)
-	)
+	    !(p->r_ffrom->fi_stflags & FI_ISLNK) &&
+	    !fwritable(p->r_hto->h_name, p->r_fdel)
+	    )
 		fprintf(stderr, "old %s%s lacks write permission. delete it",
 			p->r_hto->h_name, p->r_nto);
 	else
@@ -1500,11 +1483,11 @@ static int movealias(REP *first, REP *p, int *pprintaliased)
 	fstart = pathbuf + strlen(pathbuf);
 	strcpy(fstart, TEMP);
 	for (
-		ret = 0;
-		sprintf(fstart + STRLEN(TEMP), "%03d", ret),
-		fsearch(fstart, p->r_hto->h_di) != NULL;
-		ret++
-	)
+	     ret = 0;
+	     sprintf(fstart + strlen(TEMP), "%03d", ret),
+		     fsearch(fstart, p->r_hto->h_di) != NULL;
+	     ret++
+	     )
 		;
 	if (rename(fullrep, pathbuf)) {
 		fprintf(stderr,
@@ -1555,13 +1538,13 @@ static int copy(FILEINFO *ff, off_t len)
 			;
 	if (!(op & (APPEND | OVERWRITE)))
 		if (
-			stat(pathbuf, &fstat) ||
-			(
-				tim.actime = fstat.st_atime,
-				tim.modtime = fstat.st_mtime,
-				utime(fullrep, &tim)
-			)
-		)
+		    stat(pathbuf, &fstat) ||
+		    (
+		     tim.actime = fstat.st_atime,
+		     tim.modtime = fstat.st_mtime,
+		     utime(fullrep, &tim)
+		     )
+		    )
 			fprintf(stderr, "Strange, couldn't transfer time from %s to %s.\n",
 				pathbuf, fullrep);
 
@@ -1589,7 +1572,7 @@ static int copymove(REP *p)
 	return(copy(p->r_ffrom, -1L) || myunlink(pathbuf));
 }
 
-static void doreps(void)
+void doreps(void)
 {
 	char *fstart;
 	unsigned k;
@@ -1611,8 +1594,9 @@ static void doreps(void)
 			if (mkdirs && p->r_hto->h_di->di_flags & DI_NONEXISTENT) {
 				if (verbose)
 					printf("creating directory %s\n", p->r_hto->h_name);
-				// FIXME: check the return value.
-				make_directory(p->r_hto);
+				int res = make_path(p->r_hto->h_name);
+				if (res != 0)
+					fprintf(stderr, "Strange, couldn't create directory %s.\n",  p->r_hto->h_name);
 				p->r_hto->h_di->di_flags &= ~DI_NONEXISTENT;
 			}
 			strcat(fullrep, p->r_nto);
@@ -1640,7 +1624,7 @@ static void doreps(void)
 					(op & SYMLINK) ?
 						symlink((p->r_flags & R_ONEDIRLINK) ? fstart : pathbuf,
 							fullrep) :
-					p->r_hto->h_di->di_vid != p->r_hfrom->h_di->di_vid ?
+					p->r_flags & R_ISX ?
 						copymove(p) :
 					/* move */
 						rename(pathbuf, fullrep)
@@ -1671,109 +1655,124 @@ static void doreps(void)
 		fprintf(stderr, "Nothing done.\n");
 }
 
-int main(int argc, char *argv[])
-{
-	char *frompat, *topat;
+/* int main(int argc, char *argv[]) */
+/* { */
+/*	char *frompat, *topat; */
 
-	set_program_name(argv[0]);
+/*	set_program_name(argv[0]); */
 
-	struct stat dstat;
+/*	struct stat dstat; */
 
-	if ((home = getenv("HOME")) == NULL || strcmp(home, SLASHSTR) == 0)
-		home = "";
-	if (!stat(".", &dstat)) {
-		cwdd = dstat.st_ino;
-		cwdv = dstat.st_dev;
-	}
-	oldumask = umask(0);
-#ifndef _WIN32
-	uid = getuid();
-#endif
-	signal(SIGINT, breakout);
+/*	if ((home = getenv("HOME")) == NULL || strcmp(home, SLASHSTR) == 0) */
+/*		home = ""; */
+/*	if (!stat(".", &dstat)) { */
+/*		cwdd = dstat.st_ino; */
+/*		cwdv = dstat.st_dev; */
+/*	} */
+/*	oldumask = umask(0); */
+/* #ifndef _WIN32 */
+/*	euid = geteuid(); */
+/*	uid = getuid(); */
+/* #endif */
+/*	signal(SIGINT, breakout); */
 
-	dirroom = handleroom = INITROOM;
-	dirs = (DIRINFO **)xmalloc(dirroom * sizeof(DIRINFO *));
-	handles = (HANDLE **)xmalloc(handleroom * sizeof(HANDLE *));
-	ndirs = nhandles = 0;
+/*	dirroom = handleroom = INITROOM; */
+/*	dirs = (DIRINFO **)xmalloc(dirroom * sizeof(DIRINFO *)); */
+/*	handles = (HANDLE **)xmalloc(handleroom * sizeof(HANDLE *)); */
+/*	ndirs = nhandles = 0; */
 
-	dirroom_nonexistent = INITROOM;
-	dirs_nonexistent = (DIRINFO **)xmalloc(dirroom_nonexistent * sizeof(DIRINFO *));
-	ndirs_nonexistent = 0;
+/*	dirroom_nonexistent = INITROOM; */
+/*	dirs_nonexistent = (DIRINFO **)xmalloc(dirroom_nonexistent * sizeof(DIRINFO *)); */
+/*	ndirs_nonexistent = 0; */
 
-	struct gengetopt_args_info args_info;
-	if (cmdline_parser(argc, argv, &args_info) != 0)
-		exit(EXIT_FAILURE);
+/*	struct gengetopt_args_info args_info; */
+/*	if (cmdline_parser(argc, argv, &args_info) != 0) */
+/*		exit(EXIT_FAILURE); */
 
-	verbose = args_info.verbose_given != 0;
-	noex = args_info.dryrun_given != 0;
-	matchall = args_info.hidden_given != 0;
-	mkdirs = args_info.makedirs_given != 0;
+/*	verbose = args_info.verbose_given != 0; */
+/*	noex = args_info.dryrun_given != 0; */
+/*	matchall = args_info.hidden_given != 0; */
+/*	mkdirs = args_info.makedirs_given != 0; */
 
-	delstyle = ASKDEL;
-	if (args_info.force_given != 0)
-		delstyle = ALLDEL;
-	else if (args_info.protect_given != 0)
-		delstyle = NODEL;
+/*	delstyle = ASKDEL; */
+/*	if (args_info.force_given != 0) */
+/*		delstyle = ALLDEL; */
+/*	else if (args_info.protect_given != 0) */
+/*		delstyle = NODEL; */
 
-	badstyle = ASKBAD;
-	if (args_info.go_given != 0)
-		badstyle = SKIPBAD;
-	else if (args_info.terminate_given != 0)
-		badstyle = ABORTBAD;
+/*	badstyle = ASKBAD; */
+/*	if (args_info.go_given != 0) */
+/*		badstyle = SKIPBAD; */
+/*	else if (args_info.terminate_given != 0) */
+/*		badstyle = ABORTBAD; */
 
-	// The hidden --rename/-r option is recognised for backwards compatibility.
-	if (args_info.move_given != 0 || args_info.rename_given != 0)
-		op = NORMMOVE;
-	else if (args_info.copydel_given != 0)
-		op = XMOVE;
-	else if (args_info.copy_given != 0)
-		op = NORMCOPY;
-	else if (args_info.overwrite_given != 0)
-		op = OVERWRITE;
-	else if (args_info.append_given != 0)
-		op = APPEND;
-	else if (args_info.hardlink_given != 0)
-		op = HARDLINK;
-	else if (args_info.symlink_given != 0)
-		op = SYMLINK;
-	else {
-		const char *name = base_name(program_name);
+	/* if (args_info.move_given != 0) */
+	/*	op = NORMMOVE; */
+	/* else if (args_info.copydel_given != 0) */
+	/*	op = XMOVE; */
+	/* else if (args_info.rename_given != 0) */
+	/*	op = DIRMOVE; */
+	/* else if (args_info.copy_given != 0) */
+	/*	op = NORMCOPY; */
+	/* else if (args_info.overwrite_given != 0) */
+	/*	op = OVERWRITE; */
+	/* else if (args_info.append_given != 0) */
+	/*	op = APPEND; */
+	/* else if (args_info.hardlink_given != 0) */
+	/*	op = HARDLINK; */
+	/* else if (args_info.symlink_given != 0) */
+	/*	op = SYMLINK; */
+	/* else { */
+	/*	const char *name = base_name(program_name); */
 
-		if (strcmp(name, COPYNAME) == 0)
-			op = NORMCOPY;
-		else if (strcmp(name, APPENDNAME) == 0)
-			op = APPEND;
-		else if (strcmp(name, LINKNAME) == 0)
-			op = HARDLINK;
-		else
-			op = XMOVE;
-	}
+	/*	if (strcmp(name, COPYNAME) == 0) */
+	/*		op = NORMCOPY; */
+	/*	else if (strcmp(name, APPENDNAME) == 0) */
+	/*		op = APPEND; */
+	/*	else if (strcmp(name, LINKNAME) == 0) */
+	/*		op = HARDLINK; */
+	/*	else */
+	/*		op = XMOVE; */
+	/* } */
 
-	if (badstyle != ASKBAD && delstyle == ASKDEL)
-		delstyle = NODEL;
+/* #ifndef _WIN32 */
+/*	if (euid != uid && !(op & DIRMOVE)) { */
+/*		/\* Best effort. *\/ */
+/*		ignore_value(setuid(uid)); */
+/*		ignore_value(setgid(getgid())); */
+/*	} */
+/* #endif */
 
-	if (args_info.inputs_num == 2) {
-		frompat = args_info.inputs[0];
-		topat = args_info.inputs[1];
-	}
-	else {
-		/* Print message to stderr, not stdout. */
-		dup2(STDERR_FILENO, STDOUT_FILENO);
-		cmdline_parser_print_help();
-		exit(1);
-	}
+/*	if (badstyle != ASKBAD && delstyle == ASKDEL) */
+/*		delstyle = NODEL; */
 
-	domatch(frompat, topat);
-	if (!(op & APPEND))
-		checkcollisions();
-	findorder();
-	if (op & (COPY | LINK))
-		nochains();
-	scandeletes(baddel);
-	goonordie();
-	if (!(op & APPEND) && delstyle == ASKDEL)
-		scandeletes(skipdel);
-	doreps();
+/*	if (args_info.inputs_num == 2) { */
+/*		frompat = args_info.inputs[0]; */
+/*		topat = args_info.inputs[1]; */
+/*	} */
+/*	else { */
+/*		/\* Print message to stderr, not stdout. *\/ */
+/*		dup2(STDERR_FILENO, STDOUT_FILENO); */
+/*		cmdline_parser_print_help(); */
+/*		exit(1); */
+/*	} */
 
-	return(failed ? 2 : nreps == 0 && (paterr || badreps));
-}
+/*	domatch(frompat, topat); */
+/*	if (!(op & APPEND)) */
+/*		checkcollisions(); */
+/*	findorder(); */
+/*	if (op & (COPY | LINK)) */
+/*		nochains(); */
+/*	scandeletes(baddel); */
+/*	goonordie(); */
+/*	if (!(op & APPEND) && delstyle == ASKDEL) */
+/*		scandeletes(skipdel); */
+/*	doreps(); */
+
+/*	return(failed ? 2 : nreps == 0 && (paterr || badreps)); */
+/* } */
+
+/*	cmdline_parser_free(&args_info); */
+
+/*	return(failed ? 2 : nreps == 0 && (paterr || badreps)); */
+/* } */

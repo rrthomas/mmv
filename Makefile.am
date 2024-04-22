@@ -19,6 +19,8 @@
 
 ACLOCAL_AMFLAGS=-I m4
 
+AM_VALAFLAGS = --debug --vapidir=$(srcdir)
+
 SUBDIRS = lib
 
 dist_doc_DATA = README.md
@@ -31,14 +33,22 @@ dist_man_MANS = mmv.1
 MAN_SYMLINKS = mad.1 mcp.1 mln.1
 
 bin_PROGRAMS = mmv$(EXEEXT)
-mmv_SOURCES = mmv.c cmdline.c cmdline.h
-mmv_LDADD = $(LDADD)
+mmv_SOURCES = mmv_c.c cmdline.c cmdline.h mmv.vala $(BUILT_SOURCES)
+mmv_LDADD = $(LDADD) $(GLIB_LIBS)
+mmv_CFLAGS = --include config.h $(GLIB_CFLAGS)
+mmv_VALAFLAGS = $(AM_VALAFLAGS) --pkg config --pkg gee-0.8 --pkg posix --pkg gnu --pkg cmdline --pkg mmv
+VAPIS =	config.vapi cmdline.vapi mmv.vapi
 
 SYMLINKS = mcp$(EXEEXT) mln$(EXEEXT) mad$(EXEEXT)
 MAKELINKS = for n in $(SYMLINKS); do $(RM) $$n$(EXEEXT) && $(LN_S) mmv$(EXEEXT) $$n; done
 
-EXTRA_SRCS = opts.ggo
+EXTRA_SRCS = opts.ggo $(VAPIS)
 EXTRA_DIST = $(man_MANS) $(EXTRA_SRCS) m4/gnulib-cache.m4 mmv-include.man build-aux/mmv-help2man-wrapper
+
+BUILT_SOURCES = dummy.vala
+
+dummy.vala: $(VAPIS) $(BUILT_VAPIS)
+	touch $@
 
 DISTCLEANFILES = $(man_MANS)
 
@@ -51,7 +61,7 @@ mmv.1: mmv.c build-aux/mmv-help2man-wrapper mmv-include.man
 		--output=$@ $(srcdir)/build-aux/mmv-help2man-wrapper; \
 	fi
 
-mmv.o: cmdline.h
+mmv.c: cmdline.h
 
 cmdline.h cmdline.c: $(top_srcdir)/opts.ggo
 	gengetopt < $(top_srcdir)/opts.ggo --unamed-opts
