@@ -12,6 +12,8 @@
 /configure
 /cmdline.c
 /cmdline.h
+/dummy.c
+/dummy.vala
 /lib
 /m4
 /mad
@@ -22,6 +24,9 @@
 /mln.exe
 /mmv
 /mmv.exe
+/mmv.c
 /mmv.1
+/mmv_vala.stamp
+/mmv_vala.stamp-t
 /mmv-*.tar.gz
 /stamp-h1
