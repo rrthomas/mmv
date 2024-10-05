@@ -171,7 +171,6 @@ typedef struct {
 
 
 static int op, badstyle, delstyle, verbose, noex, matchall, mkdirs;
-static int patflags;
 
 static size_t ndirs = 0, dirroom;
 static size_t ndirs_nonexistent = 0, dirroom_nonexistent;
@@ -1072,7 +1071,7 @@ static int dostage(char *lastend, char *pathend, char **start1, size_t *len1, in
 					(*pf)->fi_rep = MISTAKE;
 				} else {
 					(*pf)->fi_rep = p = (REP *)xmalloc(sizeof(REP));
-					p->r_flags = flags | patflags;
+					p->r_flags = flags;
 					p->r_hfrom = h;
 					p->r_ffrom = *pf;
 					p->r_hto = hto;
