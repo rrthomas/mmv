@@ -28,6 +28,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/lib -I$(top_builddir)/lib
 AM_CFLAGS = $(WARN_CFLAGS)
 
 dist_man_MANS = mmv.1
+MAN_SYMLINKS = mad.1 mcp.1 mln.1
 
 bin_PROGRAMS = mmv$(EXEEXT)
 mmv_SOURCES = mmv.c cmdline.c cmdline.h
@@ -58,11 +59,19 @@ cmdline.h cmdline.c: $(top_srcdir)/opts.ggo
 all-local: mmv$(EXEEXT)
 	$(MAKELINKS)
 
+install-data-hook:
+	for n in $(MAN_SYMLINKS); do \
+		cd $(DESTDIR)$(mandir)/man1 && $(RM) $$n && $(LN_S) mmv.1 $$n; \
+	done
+
 install-exec-hook:
 	cd $(DESTDIR)$(bindir) && $(MAKELINKS)
 
 uninstall-hook:
 	cd $(DESTDIR)$(bindir) && $(RM) $(SYMLINKS)
+	for n in $(MAN_SYMLINKS); do \
+		$(RM) $(DESTDIR)$(mandir)/man1/$$n; \
+	done
 
 clean-local:
 	$(RM) $(SYMLINKS)
