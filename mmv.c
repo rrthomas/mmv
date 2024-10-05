@@ -143,7 +143,6 @@ typedef struct {
 	char h_err;
 } HANDLE;
 
-#define R_ISX 0x01
 #define R_SKIP 0x02
 #define R_DELOK 0x04
 #define R_ISALIASED 0x08
@@ -584,6 +583,23 @@ static int make_path(char *path)
 	return(0);
 }
 
+/* Create a non-existent directory and update its DIRINFO. */
+static int make_directory(HANDLE *h) {
+	int res = make_path(h->h_name);
+	if (res != 0)
+		fprintf(stderr, "Strange, couldn't create directory %s.\n",  h->h_name);
+	else {
+		struct stat dstat;
+		if (stat(h->h_name, &dstat) || (dstat.st_mode & S_IFMT) != S_IFDIR) {
+			fprintf(stderr, "Strange, couldn't stat new directory %s.\n", h->h_name);
+			res = -1;
+		}
+		h->h_di->di_vid = dstat.st_dev;
+		h->h_di->di_did = dstat.st_ino;
+	}
+	return res;
+}
+
 static HANDLE *hadd(char *n)
 {
 	if (nhandles == handleroom)
@@ -882,7 +898,7 @@ static int badrep(HANDLE *hfrom, FILEINFO *ffrom, HANDLE **phto, char **pnto, FI
 			pathbuf, fullrep);
 	else if (
 		(*phto)->h_di->di_vid != hfrom->h_di->di_vid &&
-		(*pflags = R_ISX, (op & (NORMMOVE | HARDLINK)))
+		(op & (NORMMOVE | HARDLINK))
 	)
 		printf("%s -> %s : cross-device move.\n",
 			pathbuf, fullrep);
@@ -1621,9 +1637,8 @@ static void doreps(void)
 			if (mkdirs && p->r_hto->h_di->di_flags & DI_NONEXISTENT) {
 				if (verbose)
 					printf("creating directory %s\n", p->r_hto->h_name);
-				int res = make_path(p->r_hto->h_name);
-				if (res != 0)
-					fprintf(stderr, "Strange, couldn't create directory %s.\n",  p->r_hto->h_name);
+				// FIXME: check the return value.
+				make_directory(p->r_hto);
 				p->r_hto->h_di->di_flags &= ~DI_NONEXISTENT;
 			}
 			strcat(fullrep, p->r_nto);
@@ -1651,7 +1666,7 @@ static void doreps(void)
 					(op & SYMLINK) ?
 						symlink((p->r_flags & R_ONEDIRLINK) ? fstart : pathbuf,
 							fullrep) :
-					p->r_flags & R_ISX ?
+					p->r_hto->h_di->di_vid != p->r_hfrom->h_di->di_vid ?
 						copymove(p) :
 					/* move */
 						rename(pathbuf, fullrep)
