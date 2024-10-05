@@ -892,7 +892,7 @@ static int badrep(HANDLE *hfrom, FILEINFO *ffrom, HANDLE **phto, char **pnto, FI
 		printf("%s -> %s : %s.\n", pathbuf, fullrep,
 			direrr == H_NOREADDIR ?
 			"no read or search permission for target directory" :
-			"target directory does not exist");
+			"target directory does not exist (you could use --makedirs)");
 	else if (!dwritable(*phto))
 		printf("%s -> %s : no write permission for target directory.\n",
 			pathbuf, fullrep);
