@@ -55,9 +55,6 @@
 #include "dirname.h"
 #include "pathmax.h"
 #include "xalloc.h"
-#ifndef _WIN32
-#include "ignore-value.h"
-#endif
 
 #include "cmdline.h"
 
@@ -203,7 +200,7 @@ static REP mistake;
 
 static const char *home;
 static size_t homelen;
-static uid_t uid, euid;
+static uid_t uid;
 static mode_t oldumask;
 static ino_t cwdd = (ino_t)-1L;
 static dev_t cwdv = (dev_t)-1L;
@@ -1690,7 +1687,6 @@ int main(int argc, char *argv[])
 	}
 	oldumask = umask(0);
 #ifndef _WIN32
-	euid = geteuid();
 	uid = getuid();
 #endif
 	signal(SIGINT, breakout);
@@ -1752,14 +1748,6 @@ int main(int argc, char *argv[])
 		else
 			op = XMOVE;
 	}
-
-#ifndef _WIN32
-	if (euid != uid) {
-		/* Best effort. */
-		ignore_value(setuid(uid));
-		ignore_value(setgid(getgid()));
-	}
-#endif
 
 	if (badstyle != ASKBAD && delstyle == ASKDEL)
 		delstyle = NODEL;
