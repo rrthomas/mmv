@@ -22,7 +22,8 @@ option "makedirs"        D "create non-existent directories"                    
 defgroup "mode" groupdesc="Mode of operation"
 groupoption "move"       m "move source file to target name"                              group="mode"
 groupoption "copydel"    x "copy source to target, then delete source"                    group="mode"
-groupoption "rename"     r "rename source to target in same directory"                    group="mode"
+# Option retained for backwards compatibility.
+groupoption "rename"     r "rename source to target in same directory"                    group="mode" hidden
 groupoption "copy"       c "copy source to target, preserving source permissions"         group="mode"
 groupoption "overwrite"  o "overwrite target with source, preserving target permissions"  group="mode"
 groupoption "append"     a "append contents of source file to target"                     group="mode"

@@ -76,13 +76,12 @@
 #define OVERWRITE 0x004
 #define NORMMOVE 0x008
 #define XMOVE 0x010
-#define DIRMOVE 0x020
 #define APPEND 0x040
 #define HARDLINK 0x100
 #define SYMLINK 0x200
 
 #define COPY (NORMCOPY | OVERWRITE)
-#define MOVE (NORMMOVE | XMOVE | DIRMOVE)
+#define MOVE (NORMMOVE | XMOVE)
 #define LINK (HARDLINK | SYMLINK)
 
 static char COPYNAME[] = "mcp";
@@ -756,64 +755,47 @@ static HANDLE *checkdir(char *p, char *pathend, int makedirs)
 	return(h);
 }
 
-static int checkto(HANDLE *hfrom, char *f, HANDLE **phto, char **pnto, FILEINFO **pfdel)
+static int checkto(char *f, HANDLE **phto, char **pnto, FILEINFO **pfdel)
 {
 	char tpath[PATH_MAX + 1];
-	char *pathend;
 	FILEINFO *fdel = NULL;
-	size_t hlen, tlen;
 
-	if (op & DIRMOVE) {
-		*phto = hfrom;
-		hlen = strlen(hfrom->h_name);
-		pathend = fullrep + hlen;
-		memmove(pathend, fullrep, strlen(fullrep) + 1);
-		memmove(fullrep, hfrom->h_name, hlen);
-		if ((fdel = *pfdel = fsearch(pathend, hfrom->h_di)) != NULL) {
-			*pnto = xstrdup(fdel->fi_name);
-			getstat(fullrep, fdel);
-		}
-		else
-			*pnto = xstrdup(pathend);
-	}
-	else {
-		pathend = getpath(tpath);
-		hlen = (size_t)(pathend - fullrep);
+	char *pathend = getpath(tpath);
+	size_t hlen = (size_t)(pathend - fullrep);
+	*phto = checkdir(tpath, tpath + hlen, mkdirs);
+	if (
+	    *phto != NULL &&
+	    *pathend != '\0' &&
+	    (fdel = *pfdel = fsearch(pathend, (*phto)->h_di)) != NULL &&
+	    (getstat(fullrep, fdel), fdel->fi_stflags & FI_ISDIR) &&
+	    (strcmp(pathend, fullrep) != 0)
+	    ) {
+		size_t tlen = strlen(pathend);
+		strcpy(pathend + tlen, SLASHSTR);
+		tlen++;
+		strcpy(tpath + hlen, pathend);
+		pathend += tlen;
+		hlen += tlen;
 		*phto = checkdir(tpath, tpath + hlen, mkdirs);
-		if (
-			*phto != NULL &&
-			*pathend != '\0' &&
-			(fdel = *pfdel = fsearch(pathend, (*phto)->h_di)) != NULL &&
-			(getstat(fullrep, fdel), fdel->fi_stflags & FI_ISDIR) &&
-			(strcmp(pathend, fullrep) != 0)
-		) {
-			tlen = strlen(pathend);
-			strcpy(pathend + tlen, SLASHSTR);
-			tlen++;
-			strcpy(tpath + hlen, pathend);
-			pathend += tlen;
-			hlen += tlen;
-			*phto = checkdir(tpath, tpath + hlen, mkdirs);
-		}
-
-		if (*pathend == '\0') {
-			*pnto = xstrdup(f);
-			if ((size_t)(pathend - fullrep) + strlen(f) >= PATH_MAX) {
-				strcpy(fullrep, TOOLONG);
-				return(-1);
-			}
-			strcat(pathend, f);
-			if (*phto != NULL) {
-				fdel = *pfdel = fsearch(f, (*phto)->h_di);
-				if (fdel != NULL)
-					getstat(fullrep, fdel);
-			}
-		}
-		else if (fdel != NULL)
-			*pnto = fdel->fi_name;
-		else
-			*pnto = xstrdup(pathend);
 	}
+
+	if (*pathend == '\0') {
+		*pnto = xstrdup(f);
+		if ((size_t)(pathend - fullrep) + strlen(f) >= PATH_MAX) {
+			strcpy(fullrep, TOOLONG);
+			return(-1);
+		}
+		strcat(pathend, f);
+		if (*phto != NULL) {
+			fdel = *pfdel = fsearch(f, (*phto)->h_di);
+			if (fdel != NULL)
+				getstat(fullrep, fdel);
+		}
+	}
+	else if (fdel != NULL)
+		*pnto = fdel->fi_name;
+	else
+		*pnto = xstrdup(pathend);
 	return(0);
 }
 
@@ -886,7 +868,7 @@ static int badrep(HANDLE *hfrom, FILEINFO *ffrom, HANDLE **phto, char **pnto, FI
 		!(op & SYMLINK)
 	)
 		printf("%s -> %s : . and .. can't be renamed.\n", pathbuf, fullrep);
-	else if (repbad || checkto(hfrom, f, phto, pnto, pfdel) || badname(*pnto))
+	else if (repbad || checkto(f, phto, pnto, pfdel) || badname(*pnto))
 		printf("%s -> %s : bad new name.\n", pathbuf, fullrep);
 	else if (*phto == NULL)
 		printf("%s -> %s : %s.\n", pathbuf, fullrep,
@@ -1223,11 +1205,6 @@ static int parsepat(void)
 	for (p = lastname; (c = *p) != '\0'; p++)
 		switch (c) {
 		case SLASH:
-			if (op & DIRMOVE) {
-				printf("%s -> %s : no path allowed in target under -r.\n",
-					from, to);
-				return(-1);
-			}
 			lastname = p + 1;
 			break;
 		case '#':
@@ -1748,12 +1725,11 @@ int main(int argc, char *argv[])
 	else if (args_info.terminate_given != 0)
 		badstyle = ABORTBAD;
 
-	if (args_info.move_given != 0)
+	// The hidden --rename/-r option is recognised for backwards compatibility.
+	if (args_info.move_given != 0 || args_info.rename_given != 0)
 		op = NORMMOVE;
 	else if (args_info.copydel_given != 0)
 		op = XMOVE;
-	else if (args_info.rename_given != 0)
-		op = DIRMOVE;
 	else if (args_info.copy_given != 0)
 		op = NORMCOPY;
 	else if (args_info.overwrite_given != 0)
@@ -1778,7 +1754,7 @@ int main(int argc, char *argv[])
 	}
 
 #ifndef _WIN32
-	if (euid != uid && !(op & DIRMOVE)) {
+	if (euid != uid) {
 		/* Best effort. */
 		ignore_value(setuid(uid));
 		ignore_value(setgid(getgid()));

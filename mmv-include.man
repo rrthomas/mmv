@@ -74,11 +74,6 @@ When copying, sets the permission bits
 and file modification time
 of the target file to that of the source file.
 .TP
-\fB\-\-rename\fR:
-rename source file or directory to target name.
-The target name must not include a path:
-the file remains in the same directory in all cases.
-.TP
 \fB\-\-copy\fR:
 copy source file to target name.
 Sets the file modification time and permission bits
@@ -246,7 +241,7 @@ expands the '~' in the exact same manner as
 .IR sh (1),
 does not expand it at all).
 .PP
-For all task options other than \-r, if the target name is a directory,
+If the target name is a directory,
 the real target name is formed by appending
 a '/' followed by the last component
 of the source file name.
