@@ -96,6 +96,7 @@ static char LINKNAME[] = "mln";
 #define STAY 0
 #define LOWER 1
 #define UPPER 2
+#define CAPITALIZE 3
 
 #define MAXWILD 20
 #define MAXPATLEN PATH_MAX
@@ -923,6 +924,10 @@ static void makerep(void)
 				cnv = UPPER;
 				c = *(++pat);
 			}
+			else if (c == 'c') {
+				cnv = CAPITALIZE;
+				c = *(++pat);
+			}
 			else
 				cnv = STAY;
 			for(x = 0; ;x *= 10) {
@@ -947,6 +952,14 @@ static void makerep(void)
 			case UPPER:
 				for (i = length[x], q = start[x]; i > 0; i--, p++, q++)
 					*p = (char)toupper(*q);
+				break;
+			case CAPITALIZE:
+				for (i = length[x], q = start[x]; i > 0; i--, p++, q++){
+					if(i == length[x])
+						*p = (char)toupper(*q);
+					else
+						*p = (char)tolower(*q);
+				}
 			}
 		}
 		else {
@@ -1206,7 +1219,7 @@ static int parsepat(void)
 			break;
 		case '#':
 			c = *(++p);
-			if (c == 'l' || c == 'u') {
+			if (c == 'l' || c == 'u' || c == 'c') {
 				c = *(++p);
 			}
 			if (!isdigit(c)) {
