@@ -5,8 +5,8 @@ usage " [-m|-x|-r|-c|-o|-a|-l|-s] [-h] [-d|-p] [-g|-t] [-v|-n] FROM TO"
 description "The FROM pattern is a shell glob pattern, in which `*' stands for any number
 of characters and `?' stands for a single character.
 
-Use #[l|u]N in the TO pattern to get the string matched by the Nth
-FROM pattern wildcard [lowercased|uppercased].
+Use #[l|u|c]N in the TO pattern to get the string matched by the Nth
+FROM pattern wildcard [lowercased|uppercased|capitalized].
 
 Patterns should be quoted on the command line."
 
