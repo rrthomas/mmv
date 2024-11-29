@@ -42,7 +42,7 @@ EXTRA_DIST = $(man_MANS) $(EXTRA_SRCS) m4/gnulib-cache.m4 mmv-include.man build-
 
 DISTCLEANFILES = $(man_MANS)
 
-mmv.1: mmv.c build-aux/mmv-help2man-wrapper mmv-include.man
+mmv.1: mmv.c build-aux/mmv-help2man-wrapper mmv-include.man opts.ggo
 ## Exit gracefully if $@ is not writeable, such as during distcheck!
 	$(AM_V_GEN)if ( touch $@.w && rm -f $@.w; ) >/dev/null 2>&1; then \
 	  $(top_srcdir)/build-aux/missing --run $(HELP2MAN) --no-info \
